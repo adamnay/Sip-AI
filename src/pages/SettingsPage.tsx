@@ -544,11 +544,9 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <button
                   disabled={loggingOut}
-                  onClick={async () => {
+                  onClick={() => {
                     setLoggingOut(true);
-                    await onLogout();
-                    setLoggingOut(false);
-                    setShowLogoutConfirm(false);
+                    onLogout(); // setSession(null) inside causes immediate unmount
                   }}
                   style={{
                     width: '100%',

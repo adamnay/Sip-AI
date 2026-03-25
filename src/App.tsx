@@ -361,7 +361,7 @@ export default function App() {
         darkMode={darkMode}
         onToggleDark={handleToggleDark}
         session={session}
-        onLogout={async () => { await supabase.auth.signOut().catch(() => {}); setSession(null); }}
+        onLogout={() => { setSession(null); supabase.auth.signOut().catch(() => {}); }}
         onSyncNow={async () => {
           if (!session?.user?.id) throw new Error('Not logged in');
           const cloud = await loadStateFromCloud(session.user.id);
