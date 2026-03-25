@@ -79,8 +79,8 @@ export default function App() {
           if (cloud) {
             setState(_ => applyTimeDecay({ ...createInitialState(), ...cloud }));
             // Restore dark mode preference if it was saved to cloud
-            if (typeof (cloud as Record<string, unknown>)._darkMode === 'boolean') {
-              setDarkMode((cloud as Record<string, unknown>)._darkMode as boolean);
+            if (typeof (cloud as unknown as Record<string, unknown>)._darkMode === 'boolean') {
+              setDarkMode((cloud as unknown as Record<string, unknown>)._darkMode as boolean);
             }
           }
         } catch { /* ignore cloud errors, keep local state */ }
@@ -175,8 +175,8 @@ export default function App() {
             const profileMatch = JSON.stringify(cloudState.userProfile) === JSON.stringify(prev.userProfile);
             if (!drinkSetsMatch || !activitySetsMatch || cloudState.hangoverMode !== prev.hangoverMode || !profileMatch) {
               // Also sync dark mode preference if present
-              if (typeof (cloudState as Record<string, unknown>)._darkMode === 'boolean') {
-                setDarkMode((cloudState as Record<string, unknown>)._darkMode as boolean);
+              if (typeof (cloudState as unknown as Record<string, unknown>)._darkMode === 'boolean') {
+                setDarkMode((cloudState as unknown as Record<string, unknown>)._darkMode as boolean);
               }
               return applyTimeDecay({ ...createInitialState(), ...cloudState });
             }
