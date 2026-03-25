@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useTheme, getTheme } from '../context/ThemeContext';
+import { WaterIcon, CoffeeIcon } from '../components/Icons';
 import type { Session } from '@supabase/supabase-js';
 
 interface Props {
@@ -10,35 +11,65 @@ interface Props {
 const QUESTIONS = [
   {
     id: 'goal',
-    question: "What's your main hydration goal?",
-    icon: '🎯',
-    options: ['Better energy', 'Athletic performance', 'Weight management', 'Skin & appearance', 'General wellness'],
+    question: "What's your main goal?",
+    sub: "We'll personalize your targets around this.",
+    icon: 'target',
+    options: ['More energy', 'Athletic performance', 'Weight management', 'Skin & glow', 'General wellness'],
   },
   {
     id: 'currentIntake',
-    question: 'How much water do you currently drink?',
-    icon: '💧',
+    question: 'How much water do you drink now?',
+    sub: "Be honest — no judgement here.",
+    icon: 'water',
     options: ['Barely any', 'A few glasses', 'About 8 cups/day', 'More than 8 cups'],
   },
   {
     id: 'activityLevel',
-    question: 'How active are you?',
-    icon: '🏃',
-    options: ['Mostly sedentary', 'Light exercise', 'Moderately active', 'Very active', 'Athlete'],
+    question: 'How active is your lifestyle?',
+    sub: 'This affects how fast your body loses water.',
+    icon: 'activity',
+    options: ['Mostly sedentary', 'Light exercise', 'Moderately active', 'Very active', 'Athlete level'],
   },
   {
     id: 'caffeine',
-    question: 'How much caffeine do you consume daily?',
-    icon: '☕',
-    options: ['None', '1 cup/day', '2–3 cups/day', '4+ cups/day'],
+    question: 'How much caffeine daily?',
+    sub: 'Coffee, tea, energy drinks — all count.',
+    icon: 'coffee',
+    options: ['None at all', '1 cup/day', '2–3 cups/day', '4+ cups/day'],
   },
   {
     id: 'alcohol',
     question: 'How often do you drink alcohol?',
-    icon: '🍷',
+    sub: 'Helps us coach your hydration recovery.',
+    icon: 'wine',
     options: ['Never', 'Rarely', 'Weekends', 'A few times/week', 'Daily'],
   },
 ];
+
+function QuestionIcon({ icon, color }: { icon: string; color: string }) {
+  if (icon === 'water') return <WaterIcon size={28} color={color} />;
+  if (icon === 'coffee') return <CoffeeIcon size={28} color={color} />;
+  if (icon === 'target') return (
+    <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1" fill={color} stroke="none" />
+    </svg>
+  );
+  if (icon === 'activity') return (
+    <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+    </svg>
+  );
+  if (icon === 'wine') return (
+    <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 4h8l-1.5 6a4.5 4.5 0 01-9 0L8 4z" />
+      <line x1="12" y1="14.5" x2="12" y2="20" />
+      <line x1="9" y1="20" x2="15" y2="20" />
+    </svg>
+  );
+  return null;
+}
 
 export default function LoginPage({ onLogin }: Props) {
   const isDark = useTheme();
@@ -117,58 +148,85 @@ export default function LoginPage({ onLogin }: Props) {
   // ── Onboarding ─────────────────────────────────────────────────────────────
   if (step === 'onboarding') {
     const q = QUESTIONS[qIndex];
-    const progress = (qIndex / QUESTIONS.length) * 100;
+    const iconColor = isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.6)';
     return (
       <div style={{
         background: theme.bg, minHeight: '100dvh', display: 'flex',
-        flexDirection: 'column', alignItems: 'center', padding: '0 20px 40px',
+        flexDirection: 'column', padding: '0 20px 48px',
         maxWidth: 420, margin: '0 auto',
       }}>
-        <div style={{ width: '100%', paddingTop: 60, marginBottom: 32 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 13, color: theme.textSecondary, fontWeight: 500 }}>
-              {qIndex + 1} of {QUESTIONS.length}
+        {/* Segmented progress */}
+        <div style={{ paddingTop: 56, marginBottom: 44 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: theme.textSecondary, letterSpacing: '0.06em' }}>
+              STEP {qIndex + 1} OF {QUESTIONS.length}
             </span>
-            <span style={{ fontSize: 13, color: theme.textSecondary }}>Personalizing your experience</span>
+            <span style={{ fontSize: 12, color: theme.textTertiary }}>Quick setup</span>
           </div>
-          <div style={{ height: 4, borderRadius: 2, background: theme.divider }}>
-            <div style={{
-              height: '100%', borderRadius: 2, background: theme.textPrimary,
-              width: `${progress}%`, transition: 'width 0.4s ease',
-            }} />
+          <div style={{ display: 'flex', gap: 5 }}>
+            {QUESTIONS.map((_, i) => (
+              <div key={i} style={{
+                flex: 1, height: 3, borderRadius: 3,
+                background: i <= qIndex ? theme.textPrimary : theme.divider,
+                transition: 'background 0.35s ease',
+              }} />
+            ))}
           </div>
         </div>
 
-        <div style={{ width: '100%', flex: 1 }}>
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <span style={{ fontSize: 48, display: 'block', marginBottom: 16 }}>{q.icon}</span>
-            <h2 style={{
-              fontSize: 22, fontWeight: 700, color: theme.textPrimary,
-              letterSpacing: '-0.02em', margin: 0, lineHeight: 1.3,
-            }}>
-              {q.question}
-            </h2>
+        {/* Icon + Question */}
+        <div style={{ marginBottom: 32 }}>
+          <div style={{
+            width: 60, height: 60, borderRadius: 18,
+            background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginBottom: 22,
+          }}>
+            <QuestionIcon icon={q.icon} color={iconColor} />
           </div>
+          <h2 style={{
+            fontSize: 26, fontWeight: 800, color: theme.textPrimary,
+            letterSpacing: '-0.03em', margin: '0 0 8px', lineHeight: 1.2,
+          }}>
+            {q.question}
+          </h2>
+          <p style={{ fontSize: 13, color: theme.textSecondary, margin: 0, lineHeight: 1.55 }}>
+            {q.sub}
+          </p>
+        </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {q.options.map(option => (
-              <button
-                key={option}
-                onClick={() => handleAnswer(option)}
-                style={{
-                  width: '100%', padding: '15px 18px', borderRadius: 16,
-                  border: `1px solid ${theme.cardBorder}`, background: theme.card,
-                  color: theme.textPrimary, fontSize: 15, fontWeight: 500,
-                  cursor: 'pointer', textAlign: 'left', boxShadow: theme.cardShadow,
-                  transition: 'transform 0.1s ease', fontFamily: 'inherit',
-                }}
-                onMouseDown={e => (e.currentTarget.style.transform = 'scale(0.98)')}
-                onMouseUp={e => (e.currentTarget.style.transform = 'scale(1)')}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
+        {/* Options */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          {q.options.map(option => (
+            <button
+              key={option}
+              onClick={() => handleAnswer(option)}
+              style={{
+                width: '100%', padding: '15px 18px',
+                borderRadius: 16,
+                border: `1px solid ${theme.cardBorder}`,
+                background: theme.card,
+                color: theme.textPrimary,
+                fontSize: 15, fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                boxShadow: theme.cardShadow,
+                fontFamily: 'inherit',
+                textAlign: 'left',
+                transition: 'transform 0.12s ease',
+              }}
+              onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.975)'; }}
+              onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+              onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.975)'; }}
+              onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+            >
+              <span>{option}</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={theme.textTertiary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+          ))}
         </div>
       </div>
     );
