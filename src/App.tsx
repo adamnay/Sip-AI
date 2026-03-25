@@ -50,6 +50,9 @@ function saveState(state: HydrationState) {
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  // cloudLoaded gates cloud saves — prevents empty local state from overwriting cloud
+  // before mergeCloud finishes its async network call
+  const [cloudLoaded, setCloudLoaded] = useState(false);
   const [state, setState] = useState<HydrationState>(() => {
     const s = loadState();
     return applyTimeDecay(s);
@@ -82,19 +85,23 @@ export default function App() {
           }
         } catch { /* ignore cloud errors, keep local state */ }
       }
+      // Gate opens: now safe to save to cloud without overwriting with stale local data
+      setCloudLoaded(true);
     };
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       await mergeCloud(session);
       setAuthReady(true);
-    }).catch(() => setAuthReady(true));
+    }).catch(() => { setCloudLoaded(true); setAuthReady(true); });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
-      // Only pull from cloud on actual sign-in, not token refresh or other events
       if (event === 'SIGNED_IN') {
+        setCloudLoaded(false); // block saves while we fetch fresh cloud state
         await mergeCloud(session);
+      } else if (event === 'SIGNED_OUT') {
+        setCloudLoaded(false);
       }
       setAuthReady(true);
     });
@@ -118,7 +125,8 @@ export default function App() {
 
   // Save to cloud only on user actions, not on every decay tick
   useEffect(() => {
-    if (!session?.user?.id) return;
+    // CRITICAL: don't save until cloud state has been loaded — prevents overwriting cloud with stale local data
+    if (!session?.user?.id || !cloudLoaded) return;
     // This key changes only when something the user did changes (not decay)
     const syncKey = [
       state.drinkLog.length,
@@ -136,7 +144,7 @@ export default function App() {
       saveStateToCloud(session.user.id, { ...state, _darkMode: darkMode } as HydrationState);
     }, 1000);
     return () => clearTimeout(syncTimerRef.current);
-  }, [state, session, darkMode]);
+  }, [state, session, darkMode, cloudLoaded]);
 
   // Real-time cross-device sync: receive changes made on other devices
   useEffect(() => {
