@@ -442,6 +442,32 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
           Log Out
         </button>
 
+        {/* Delete account */}
+        <button
+          onClick={async () => {
+            if (!window.confirm('Delete your account? This cannot be undone.')) return;
+            await supabase.auth.signOut();
+            localStorage.clear();
+            onLogout();
+          }}
+          style={{
+            width: '100%',
+            background: 'transparent',
+            color: theme.textTertiary,
+            border: 'none',
+            borderRadius: 16,
+            padding: '10px 20px',
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: 'pointer',
+            letterSpacing: '-0.01em',
+            fontFamily: 'inherit',
+            textDecoration: 'underline',
+          }}
+        >
+          Delete Account
+        </button>
+
       </div>
     </div>
   );
