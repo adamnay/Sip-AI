@@ -336,7 +336,7 @@ export default function App() {
 
       {/* ── Page content ── */}
       {page === 'analytics' && <AnalyticsPage state={state} />}
-      {page === 'settings' && <SettingsPage profile={state.userProfile} onSave={handleSaveProfile} darkMode={darkMode} onToggleDark={handleToggleDark} session={session} onLogout={async () => { await supabase.auth.signOut(); setSession(null); }} />}
+      {page === 'settings' && <SettingsPage profile={state.userProfile} onSave={handleSaveProfile} darkMode={darkMode} onToggleDark={handleToggleDark} session={session} onLogout={() => { supabase.auth.signOut().catch(() => {}).finally(() => setSession(null)); }} />}
 
       {/* ── Home page ── */}
       {page === 'home' && (

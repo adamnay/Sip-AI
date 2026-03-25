@@ -12,7 +12,7 @@ interface Props {
   onSave: (profile: UserProfile) => void;
   darkMode: boolean;
   onToggleDark: () => void;
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
   session: Session | null;
 }
 
