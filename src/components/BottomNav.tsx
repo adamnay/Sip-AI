@@ -132,7 +132,7 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete }: Pr
             width: 54,
             height: 54,
             borderRadius: '50%',
-            background: isDark ? theme.textPrimary : '#000000',
+            background: '#000000',
             border: `3px solid ${theme.bg}`,
             boxShadow: '0 6px 20px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.1)',
             cursor: scanning ? 'default' : 'pointer',
