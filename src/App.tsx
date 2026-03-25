@@ -52,30 +52,29 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
+    const mergeCloud = async (session: Session | null) => {
+      if (session?.user?.id) {
+        try {
+          const cloud = await loadStateFromCloud(session.user.id);
+          if (cloud) {
+            setState(prev => {
+              const merged = (cloud.lastUpdate ?? 0) > (prev.lastUpdate ?? 0) ? cloud : prev;
+              return applyTimeDecay({ ...createInitialState(), ...merged });
+            });
+          }
+        } catch { /* ignore cloud errors, keep local state */ }
+      }
+    };
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
-      if (session?.user?.id) {
-        const cloud = await loadStateFromCloud(session.user.id);
-        if (cloud) {
-          setState(prev => {
-            const merged = cloud.lastUpdate > prev.lastUpdate ? cloud : prev;
-            return applyTimeDecay(merged);
-          });
-        }
-      }
+      await mergeCloud(session);
       setAuthReady(true);
     }).catch(() => setAuthReady(true));
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
-      if (session?.user?.id) {
-        const cloud = await loadStateFromCloud(session.user.id);
-        if (cloud) {
-          setState(prev => {
-            const merged = cloud.lastUpdate > prev.lastUpdate ? cloud : prev;
-            return applyTimeDecay(merged);
-          });
-        }
-      }
+      await mergeCloud(session);
       setAuthReady(true);
     });
     return () => subscription.unsubscribe();
