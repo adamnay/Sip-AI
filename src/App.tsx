@@ -332,7 +332,7 @@ export default function App() {
           <div className="mx-6 my-3" style={{ height: 1, background: theme.divider }} />
 
           {/* Log */}
-          <DrinkLog log={state.drinkLog} onRemove={handleRemove} />
+          <DrinkLog log={state.drinkLog} activityLog={state.activityLog} onRemove={handleRemove} />
         </>
       )}
 

@@ -38,6 +38,14 @@ export interface DailyRecord {
   peakLevel: number;
 }
 
+export interface ActivityEntry {
+  id: string;
+  label: string;
+  durationMin: number;
+  hydrationDelta: number;
+  timestamp: number;
+}
+
 export interface HydrationState {
   level: number;
   lastUpdate: number;
@@ -46,6 +54,7 @@ export interface HydrationState {
   hasRecentElectrolytes: boolean;
   electrolytesActivatedAt: number;
   drinkLog: DrinkEntry[];
+  activityLog: ActivityEntry[];
   hangoverMode: boolean;
   hangoverActivatedAt: number;
   streak: number;
@@ -121,6 +130,7 @@ export function createInitialState(): HydrationState {
     hasRecentElectrolytes: false,
     electrolytesActivatedAt: 0,
     drinkLog: [],
+    activityLog: [],
     hangoverMode: false,
     hangoverActivatedAt: 0,
     streak: 0,
@@ -168,6 +178,7 @@ function migrateState(state: Partial<HydrationState>): HydrationState {
     alcoholActivatedAt: state.alcoholActivatedAt ?? 0,
     userProfile: { ...defaultUserProfile(), ...(state.userProfile ?? {}) },
     dailyHistory: state.dailyHistory ?? [],
+    activityLog: state.activityLog ?? [],
   };
 }
 
@@ -601,5 +612,17 @@ export function parseActivity(text: string): ActivityResult | null {
 
 export function applyActivity(state: HydrationState, result: ActivityResult): HydrationState {
   const newLevel = Math.max(0, Math.min(100, state.level + result.hydrationDelta));
-  return { ...state, level: newLevel, lastUpdate: Date.now() };
+  const entry: ActivityEntry = {
+    id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    label: `${result.activityType} · ${result.durationMin} min`,
+    durationMin: result.durationMin,
+    hydrationDelta: result.hydrationDelta,
+    timestamp: Date.now(),
+  };
+  return {
+    ...state,
+    level: newLevel,
+    lastUpdate: Date.now(),
+    activityLog: [entry, ...(state.activityLog ?? [])].slice(0, 30),
+  };
 }

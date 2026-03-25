@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTheme, getTheme } from '../context/ThemeContext';
-import type { DrinkEntry, DrinkType } from '../engine/hydrationEngine';
+import type { DrinkEntry, DrinkType, ActivityEntry } from '../engine/hydrationEngine';
 import {
   WaterIcon,
   CoffeeIcon,
@@ -12,10 +12,12 @@ import {
   AlcoholIcon,
   XIcon,
   CheckIcon,
+  ActivityIcon,
 } from './Icons';
 
 interface Props {
   log: DrinkEntry[];
+  activityLog?: ActivityEntry[];
   onRemove: (id: string) => void;
 }
 
@@ -43,12 +45,22 @@ function timeAgo(timestamp: number): string {
   return `${hours}h ago`;
 }
 
-export default function DrinkLog({ log, onRemove }: Props) {
+type CombinedEntry =
+  | { kind: 'drink'; data: DrinkEntry }
+  | { kind: 'activity'; data: ActivityEntry };
+
+export default function DrinkLog({ log, activityLog = [], onRemove }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
   const [expanded, setExpanded] = useState(false);
 
-  if (log.length === 0) {
+  // Merge drinks + activities sorted by most recent
+  const combined: CombinedEntry[] = [
+    ...log.map(d => ({ kind: 'drink' as const, data: d })),
+    ...activityLog.map(a => ({ kind: 'activity' as const, data: a })),
+  ].sort((a, b) => b.data.timestamp - a.data.timestamp);
+
+  if (combined.length === 0) {
     return (
       <div className="px-4 pb-4">
         <p className="text-center text-xs" style={{ color: theme.textTertiary }}>
@@ -58,7 +70,7 @@ export default function DrinkLog({ log, onRemove }: Props) {
     );
   }
 
-  const visible = expanded ? log : log.slice(0, 4);
+  const visible = expanded ? combined : combined.slice(0, 4);
 
   return (
     <div className="px-4 pb-6 flex flex-col gap-2">
@@ -67,18 +79,20 @@ export default function DrinkLog({ log, onRemove }: Props) {
       </p>
 
       <div className="flex flex-col gap-1.5">
-        {visible.map((entry, i) => (
-          <LogItem key={entry.id} entry={entry} index={i} onRemove={onRemove} theme={theme} />
-        ))}
+        {visible.map((item, i) =>
+          item.kind === 'drink'
+            ? <LogItem key={item.data.id} entry={item.data} index={i} onRemove={onRemove} theme={theme} />
+            : <ActivityItem key={item.data.id} entry={item.data} index={i} theme={theme} />
+        )}
       </div>
 
-      {log.length > 4 && (
+      {combined.length > 4 && (
         <button
           onClick={() => setExpanded((e) => !e)}
           className="text-xs text-center py-2"
           style={{ color: theme.textTertiary, cursor: 'pointer' }}
         >
-          {expanded ? 'Show less' : `+${log.length - 4} more`}
+          {expanded ? 'Show less' : `+${combined.length - 4} more`}
         </button>
       )}
     </div>
@@ -153,6 +167,37 @@ function LogItem({
           : <XIcon size={12} color={theme.textTertiary} />
         }
       </button>
+    </div>
+  );
+}
+
+function ActivityItem({
+  entry, index, theme,
+}: {
+  entry: ActivityEntry; index: number; theme: ReturnType<typeof getTheme>;
+}) {
+  const deltaColor = '#dc2626';
+  const deltaText = `${entry.hydrationDelta.toFixed(0)}%`;
+
+  return (
+    <div
+      className="glass rounded-xl px-3 py-2.5 flex items-center gap-3 log-item"
+      style={{ animationDelay: `${index * 0.04}s` }}
+    >
+      <span style={{ flexShrink: 0 }}>
+        <ActivityIcon size={18} color={theme.textSecondary} />
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium leading-tight truncate" style={{ color: theme.textPrimary }}>
+          {entry.label}
+        </p>
+        <p className="text-xs leading-tight" style={{ color: theme.textSecondary }}>
+          {timeAgo(entry.timestamp)}
+        </p>
+      </div>
+      <span className="text-sm font-semibold tabular-nums" style={{ color: deltaColor, flexShrink: 0 }}>
+        {deltaText}
+      </span>
     </div>
   );
 }
