@@ -71,21 +71,31 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Always prefer cloud state — it is the single source of truth
     const mergeCloud = async (session: Session | null) => {
       if (session?.user?.id) {
         try {
           const cloud = await loadStateFromCloud(session.user.id);
-          if (cloud) {
-            setState(_ => applyTimeDecay({ ...createInitialState(), ...cloud }));
-            // Restore dark mode preference if it was saved to cloud
-            if (typeof (cloud as unknown as Record<string, unknown>)._darkMode === 'boolean') {
-              setDarkMode((cloud as unknown as Record<string, unknown>)._darkMode as boolean);
-            }
+          const local = loadState(); // read fresh from localStorage
+
+          const cloudDrinks = (cloud?.drinkLog?.length ?? 0) + (cloud?.activityLog?.length ?? 0);
+          const localDrinks = (local.drinkLog?.length ?? 0) + (local.activityLog?.length ?? 0);
+
+          let best: HydrationState;
+          if (!cloud || localDrinks > cloudDrinks) {
+            // Cloud empty or local has more data — use local and immediately push to cloud
+            best = local;
+            await saveStateToCloud(session.user.id, { ...local, _darkMode: darkMode } as HydrationState);
+          } else {
+            // Cloud has equal or more data — trust cloud
+            best = cloud;
           }
-        } catch { /* ignore cloud errors, keep local state */ }
+
+          setState(_ => applyTimeDecay({ ...createInitialState(), ...best }));
+          if (typeof (best as unknown as Record<string, unknown>)._darkMode === 'boolean') {
+            setDarkMode((best as unknown as Record<string, unknown>)._darkMode as boolean);
+          }
+        } catch { /* keep local state on error */ }
       }
-      // Gate opens: now safe to save to cloud without overwriting with stale local data
       setCloudLoaded(true);
     };
 
