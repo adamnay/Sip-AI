@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: #f2f3f7;
+  color: #111827;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  overscroll-behavior: none;
+  min-height: 100dvh;
+  margin: 0;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+.glass {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04);
+}
+
+.glass-strong {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.05);
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.35s cubic-bezier(0.16,1,0.3,1) forwards;
+}
+
+.animate-slide-right {
+  animation: slideInRight 0.3s cubic-bezier(0.16,1,0.3,1) forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease forwards;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.7; }
+  50%       { opacity: 1; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Water fill wave animations — scroll left by SIZE (260px) per cycle */
+@keyframes wave1scroll {
+  from { transform: translateX(0px); }
+  to   { transform: translateX(-260px); }
+}
+
+@keyframes wave2scroll {
+  from { transform: translateX(-130px); }
+  to   { transform: translateX(-390px); }
+}
+
+.animate-fade-up {
+  animation: fadeSlideUp 0.4s ease forwards;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease infinite;
+}
+
+.drink-btn {
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+  user-select: none;
+}
+
+.drink-btn:active {
+  transform: scale(0.93);
+}
+
+.log-item {
+  animation: fadeSlideUp 0.3s ease forwards;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Dark mode overrides */
+body.dark {
+  background: #0f1117;
+  color: #f1f5f9;
+}
+
+body.dark .glass {
+  background: #1a1d2e;
+  border-color: rgba(255,255,255,0.07);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+}
+
+body.dark .glass-strong {
+  background: #1a1d2e;
+  border-color: rgba(255,255,255,0.09);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3);
+}
