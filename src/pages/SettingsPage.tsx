@@ -13,6 +13,7 @@ interface Props {
   darkMode: boolean;
   onToggleDark: () => void;
   onLogout: () => void | Promise<void>;
+  onSyncNow?: () => Promise<void>;
   session: Session | null;
 }
 
@@ -95,7 +96,7 @@ function SectionHeader({ icon, title, sub, theme }: { icon: React.ReactNode; tit
 }
 
 
-export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, onLogout, session }: Props) {
+export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, onLogout, onSyncNow, session }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
   const [form, setForm] = useState({
@@ -108,6 +109,8 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
   });
 
   const [saved, setSaved] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
   const [passwordMsg, setPasswordMsg] = useState('');
 
@@ -125,6 +128,21 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
     onSave(updated);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleSyncNow = async () => {
+    if (!onSyncNow) return;
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      await onSyncNow();
+      setSyncMsg('Synced successfully');
+    } catch (e: unknown) {
+      setSyncMsg(e instanceof Error ? e.message : 'Sync failed');
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncMsg(null), 4000);
+    }
   };
 
   const handlePasswordReset = async () => {
@@ -156,7 +174,7 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
       minHeight: '100dvh',
       maxWidth: 420,
       margin: '0 auto',
-      paddingBottom: 140,
+      paddingBottom: 'calc(140px + env(safe-area-inset-bottom, 0px))',
     }}>
       {/* Header */}
       <div style={{ padding: '20px 20px 8px' }}>
@@ -352,6 +370,53 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
         >
           {saved ? 'Saved!' : 'Save Settings'}
         </button>
+
+        {/* Cloud Sync */}
+        {session && (
+          <div style={{
+            background: theme.card,
+            borderRadius: 20,
+            padding: '16px',
+            boxShadow: theme.cardShadow,
+            border: `1px solid ${theme.cardBorder}`,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Cloud Sync</p>
+                <p style={{ fontSize: 12, color: theme.textSecondary, margin: '2px 0 0' }}>Pull latest data from cloud</p>
+              </div>
+              <button
+                onClick={handleSyncNow}
+                disabled={syncing}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 10,
+                  border: `1px solid ${theme.cardBorder}`,
+                  background: syncing ? 'rgba(0,0,0,0.04)' : theme.inputBg,
+                  color: theme.textPrimary,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: syncing ? 'default' : 'pointer',
+                  opacity: syncing ? 0.6 : 1,
+                  fontFamily: 'inherit',
+                }}
+              >
+                {syncing ? 'Syncing...' : 'Sync Now'}
+              </button>
+            </div>
+            {syncMsg && (
+              <p style={{
+                fontSize: 12,
+                marginTop: 8,
+                color: syncMsg === 'Synced successfully' ? '#16a34a' : '#dc2626',
+                fontWeight: 500,
+                margin: '8px 0 0',
+              }}>
+                {syncMsg}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Password section */}
         <div style={{
