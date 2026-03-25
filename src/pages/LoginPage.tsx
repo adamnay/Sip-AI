@@ -48,6 +48,7 @@ export default function LoginPage({ onLogin }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [qIndex, setQIndex] = useState(0);
@@ -81,6 +82,7 @@ export default function LoginPage({ onLogin }: Props) {
     if (!name.trim()) { setError('Please enter your name'); return; }
     if (!email.trim()) { setError('Please enter your email'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    if (password !== confirmPassword) { setError('Passwords do not match'); return; }
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
@@ -217,6 +219,16 @@ export default function LoginPage({ onLogin }: Props) {
               autoComplete={step === 'login' ? 'current-password' : 'new-password'}
               onKeyDown={e => e.key === 'Enter' && (step === 'login' ? handleLogin() : handleSignup())} />
           </div>
+
+          {step === 'signup' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: theme.textSecondary, letterSpacing: '0.05em' }}>CONFIRM PASSWORD</label>
+              <input style={inputStyle} placeholder="••••••••" type="password" value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                onKeyDown={e => e.key === 'Enter' && handleSignup()} />
+            </div>
+          )}
 
           {error && (
             <p style={{ fontSize: 13, color: error.includes('Check your email') ? '#16a34a' : '#dc2626', fontWeight: 500, margin: '2px 0 0' }}>
