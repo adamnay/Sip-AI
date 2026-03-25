@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './lib/supabase';
+import { loadStateFromCloud, saveStateToCloud } from './lib/syncState';
 import type { Session } from '@supabase/supabase-js';
 import { ThemeContext, getTheme } from './context/ThemeContext';
 import {
@@ -51,12 +52,30 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
+      if (session?.user?.id) {
+        const cloud = await loadStateFromCloud(session.user.id);
+        if (cloud) {
+          setState(prev => {
+            const merged = cloud.lastUpdate > prev.lastUpdate ? cloud : prev;
+            return applyTimeDecay(merged);
+          });
+        }
+      }
       setAuthReady(true);
     }).catch(() => setAuthReady(true));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
+      if (session?.user?.id) {
+        const cloud = await loadStateFromCloud(session.user.id);
+        if (cloud) {
+          setState(prev => {
+            const merged = cloud.lastUpdate > prev.lastUpdate ? cloud : prev;
+            return applyTimeDecay(merged);
+          });
+        }
+      }
       setAuthReady(true);
     });
     return () => subscription.unsubscribe();
@@ -83,6 +102,17 @@ export default function App() {
 
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const decayIntervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Debounced cloud save whenever state changes
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      saveStateToCloud(session.user.id, state);
+    }, 2000);
+    return () => clearTimeout(syncTimerRef.current);
+  }, [state, session]);
 
   useEffect(() => {
     decayIntervalRef.current = setInterval(() => {
