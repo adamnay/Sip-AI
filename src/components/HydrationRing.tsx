@@ -49,8 +49,9 @@ export default function HydrationRing({ level, activeCaffeineMg, hasRecentElectr
   }, [level]);
 
   // In hangover mode, use an amber/red color instead of the normal status color
+  const isCritical = level < 20;
   const baseColor = getStatusColor(level);
-  const color = hangoverMode ? '#f97316' : baseColor;
+  const color = hangoverMode ? '#f97316' : isCritical ? '#ef4444' : baseColor;
   const statusText = hangoverMode ? 'HANGOVER' : getStatusText(level);
   const clamped = Math.min(Math.max(displayLevel, 0), 100) / 100;
   const fillY = SIZE * (1 - clamped);
@@ -116,9 +117,10 @@ export default function HydrationRing({ level, activeCaffeineMg, hasRecentElectr
             cx={CX} cy={CY} r={RADIUS}
             fill="none"
             stroke={color}
-            strokeWidth={hangoverMode ? 3 : 2.5}
-            opacity={hangoverMode ? 0.5 : 0.35}
+            strokeWidth={isCritical ? 3.5 : hangoverMode ? 3 : 2.5}
+            opacity={isCritical ? 0.85 : hangoverMode ? 0.5 : 0.35}
             style={{ transition: 'stroke 0.5s ease' }}
+            className={isCritical ? 'ring-flash' : undefined}
           />
 
           {/* Outer soft ring */}
@@ -126,8 +128,9 @@ export default function HydrationRing({ level, activeCaffeineMg, hasRecentElectr
             cx={CX} cy={CY} r={RADIUS + 8}
             fill="none"
             stroke={color}
-            strokeWidth={1}
-            opacity={0.1}
+            strokeWidth={isCritical ? 2 : 1}
+            opacity={isCritical ? 0.4 : 0.1}
+            className={isCritical ? 'ring-flash' : undefined}
           />
         </svg>
 

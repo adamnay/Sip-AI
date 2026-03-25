@@ -74,6 +74,15 @@ body {
   to   { transform: rotate(360deg); }
 }
 
+@keyframes ring-flash {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.15; }
+}
+
+.ring-flash {
+  animation: ring-flash 0.9s ease-in-out infinite;
+}
+
 /* Water fill wave animations — scroll left by SIZE (260px) per cycle */
 @keyframes wave1scroll {
   from { transform: translateX(0px); }
