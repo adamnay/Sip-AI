@@ -64,7 +64,13 @@ export default function App() {
           const cloud = await loadStateFromCloud(session.user.id);
           if (cloud) {
             setState(prev => {
-              const merged = (cloud.lastUpdate ?? 0) > (prev.lastUpdate ?? 0) ? cloud : prev;
+              // Prefer cloud if it has drinks logged, otherwise use whichever is more active
+              const cloudHasData = (cloud.drinkLog?.length ?? 0) > 0 || (cloud.activityLog?.length ?? 0) > 0;
+              const localHasData = (prev.drinkLog?.length ?? 0) > 0 || (prev.activityLog?.length ?? 0) > 0;
+              let merged: typeof cloud;
+              if (cloudHasData && !localHasData) merged = cloud;
+              else if (localHasData && !cloudHasData) merged = prev;
+              else merged = (cloud.lastUpdate ?? 0) >= (prev.lastUpdate ?? 0) ? cloud : prev;
               return applyTimeDecay({ ...createInitialState(), ...merged });
             });
           }
