@@ -109,6 +109,8 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
   });
 
   const [saved, setSaved] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
@@ -489,7 +491,7 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
 
         {/* Log out */}
         <button
-          onClick={onLogout}
+          onClick={() => setShowLogoutConfirm(true)}
           style={{
             width: '100%',
             background: 'transparent',
@@ -506,6 +508,85 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
         >
           Log Out
         </button>
+
+        {/* Logout confirmation modal */}
+        {showLogoutConfirm && (
+          <div
+            onClick={() => setShowLogoutConfirm(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.45)',
+              zIndex: 100,
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: theme.card,
+                borderRadius: '24px 24px 0 0',
+                padding: '28px 20px 20px',
+                width: '100%',
+                maxWidth: 420,
+                boxShadow: '0 -8px 40px rgba(0,0,0,0.2)',
+              }}
+            >
+              <p style={{ fontSize: 18, fontWeight: 700, color: theme.textPrimary, margin: '0 0 6px', textAlign: 'center' }}>
+                Log Out?
+              </p>
+              <p style={{ fontSize: 14, color: theme.textSecondary, margin: '0 0 24px', textAlign: 'center' }}>
+                You'll need to sign back in to access your data.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  disabled={loggingOut}
+                  onClick={async () => {
+                    setLoggingOut(true);
+                    await onLogout();
+                    setLoggingOut(false);
+                    setShowLogoutConfirm(false);
+                  }}
+                  style={{
+                    width: '100%',
+                    background: '#dc2626',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 14,
+                    padding: '15px',
+                    fontSize: 16,
+                    fontWeight: 700,
+                    cursor: loggingOut ? 'default' : 'pointer',
+                    opacity: loggingOut ? 0.7 : 1,
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {loggingOut ? 'Logging out…' : 'Yes, Log Out'}
+                </button>
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  style={{
+                    width: '100%',
+                    background: 'transparent',
+                    color: theme.textSecondary,
+                    border: `1px solid ${theme.cardBorder}`,
+                    borderRadius: 14,
+                    padding: '15px',
+                    fontSize: 16,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Delete account */}
         <button
