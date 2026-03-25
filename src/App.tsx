@@ -51,6 +51,12 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
+  // Safety net: force ready after 3s so app never stays blank
+  useEffect(() => {
+    const t = setTimeout(() => setAuthReady(true), 3000);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     const mergeCloud = async (session: Session | null) => {
       if (session?.user?.id) {
@@ -214,7 +220,11 @@ export default function App() {
 
   const showBottomNav = page === 'home' || page === 'analytics' || page === 'settings';
 
-  if (!authReady) return null;
+  if (!authReady) return (
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f2f3f7' }}>
+      <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid rgba(0,0,0,0.1)', borderTopColor: '#000', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  );
 
   if (!session) {
     return (
