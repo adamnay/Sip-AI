@@ -23,7 +23,10 @@ import BottomNav from './components/BottomNav';
 import SciencePage from './pages/SciencePage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
+import LoginPage from './pages/LoginPage';
 import { FlaskIcon, StarIcon } from './components/Icons';
+
+interface Session { username: string; name: string; }
 
 type Page = 'home' | 'analytics' | 'settings' | 'science';
 
@@ -44,6 +47,10 @@ function saveState(state: HydrationState) {
 }
 
 export default function App() {
+  const [session, setSession] = useState<Session | null>(() => {
+    try { return JSON.parse(localStorage.getItem('sip-ai-session') || 'null'); } catch { return null; }
+  });
+
   const [state, setState] = useState<HydrationState>(() => {
     const s = loadState();
     return applyTimeDecay(s);
@@ -167,6 +174,14 @@ export default function App() {
 
   const showBottomNav = page === 'home' || page === 'analytics' || page === 'settings';
 
+  if (!session) {
+    return (
+      <ThemeContext.Provider value={darkMode}>
+        <LoginPage onLogin={(s) => setSession(s)} />
+      </ThemeContext.Provider>
+    );
+  }
+
   return (
     <ThemeContext.Provider value={darkMode}>
     <div
@@ -263,7 +278,7 @@ export default function App() {
 
       {/* ── Page content ── */}
       {page === 'analytics' && <AnalyticsPage state={state} />}
-      {page === 'settings' && <SettingsPage profile={state.userProfile} onSave={handleSaveProfile} darkMode={darkMode} onToggleDark={handleToggleDark} />}
+      {page === 'settings' && <SettingsPage profile={state.userProfile} onSave={handleSaveProfile} darkMode={darkMode} onToggleDark={handleToggleDark} onLogout={() => { localStorage.removeItem('sip-ai-session'); setSession(null); }} />}
 
       {/* ── Home page ── */}
       {page === 'home' && (

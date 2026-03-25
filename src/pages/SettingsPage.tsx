@@ -9,6 +9,7 @@ interface Props {
   onSave: (profile: UserProfile) => void;
   darkMode: boolean;
   onToggleDark: () => void;
+  onLogout: () => void;
 }
 
 function InputField({
@@ -89,7 +90,7 @@ function SectionHeader({ icon, title, sub, theme }: { icon: React.ReactNode; tit
   );
 }
 
-export default function SettingsPage({ profile, onSave, darkMode, onToggleDark }: Props) {
+export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, onLogout }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
   const [form, setForm] = useState({
@@ -392,6 +393,26 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark }
             Update Password
           </button>
         </div>
+
+        {/* Log out */}
+        <button
+          onClick={onLogout}
+          style={{
+            width: '100%',
+            background: 'transparent',
+            color: '#dc2626',
+            border: '1px solid rgba(220,38,38,0.25)',
+            borderRadius: 16,
+            padding: '15px 20px',
+            fontSize: 15,
+            fontWeight: 600,
+            cursor: 'pointer',
+            letterSpacing: '-0.01em',
+            fontFamily: 'inherit',
+          }}
+        >
+          Log Out
+        </button>
 
       </div>
     </div>
