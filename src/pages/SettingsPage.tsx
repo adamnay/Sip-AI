@@ -4,7 +4,8 @@ import { getDailyTargetOz } from '../engine/hydrationEngine';
 import { PersonIcon, LockIcon, GearIcon, WaterIcon } from '../components/Icons';
 import { useTheme, getTheme } from '../context/ThemeContext';
 
-interface Session { username: string; name: string; }
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 
 interface Props {
   profile: UserProfile;
@@ -93,9 +94,6 @@ function SectionHeader({ icon, title, sub, theme }: { icon: React.ReactNode; tit
   );
 }
 
-function getAccounts() {
-  try { return JSON.parse(localStorage.getItem('sip-ai-accounts') || '[]'); } catch { return []; }
-}
 
 export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, onLogout, session }: Props) {
   const isDark = useTheme();
@@ -129,18 +127,13 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
     setTimeout(() => setSaved(false), 2500);
   };
 
-  const handlePasswordReset = () => {
+  const handlePasswordReset = async () => {
     if (!passwordForm.current) { setPasswordMsg('Enter your current password'); return; }
     if (passwordForm.next.length < 6) { setPasswordMsg('New password must be 6+ characters'); return; }
     if (passwordForm.next !== passwordForm.confirm) { setPasswordMsg('Passwords do not match'); return; }
-    const accounts = getAccounts();
-    const idx = accounts.findIndex((a: { username: string }) =>
-      a.username.toLowerCase() === session?.username?.toLowerCase()
-    );
-    if (idx === -1) { setPasswordMsg('Account not found'); return; }
-    if (accounts[idx].password !== passwordForm.current) { setPasswordMsg('Current password incorrect'); return; }
-    accounts[idx].password = passwordForm.next;
-    localStorage.setItem('sip-ai-accounts', JSON.stringify(accounts));
+    // Password is managed by Supabase — update via their API
+    const { error } = await supabase.auth.updateUser({ password: passwordForm.next });
+    if (error) { setPasswordMsg(error.message); return; }
     setPasswordMsg('Password updated');
     setPasswordForm({ current: '', next: '', confirm: '' });
     setTimeout(() => setPasswordMsg(''), 3000);
@@ -245,18 +238,18 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
                 background: theme.inputBg, border: `1px solid ${theme.cardBorder}`,
                 fontSize: 15, color: theme.textPrimary, fontWeight: 500,
               }}>
-                {session?.name || '—'}
+                {session?.user?.user_metadata?.name || '—'}
               </div>
             </div>
-            {/* Username */}
+            {/* Email */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: theme.textSecondary, letterSpacing: '0.04em' }}>USERNAME</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: theme.textSecondary, letterSpacing: '0.04em' }}>EMAIL</label>
               <div style={{
                 padding: '12px 14px', borderRadius: 12,
                 background: theme.inputBg, border: `1px solid ${theme.cardBorder}`,
                 fontSize: 15, color: theme.textSecondary,
               }}>
-                @{session?.username || '—'}
+                {session?.user?.email || '—'}
               </div>
             </div>
           </div>

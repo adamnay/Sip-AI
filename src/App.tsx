@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { supabase } from './lib/supabase';
+import type { Session } from '@supabase/supabase-js';
 import { ThemeContext, getTheme } from './context/ThemeContext';
 import {
   addDrink,
@@ -26,8 +28,6 @@ import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import { FlaskIcon, StarIcon } from './components/Icons';
 
-interface Session { username: string; name: string; }
-
 type Page = 'home' | 'analytics' | 'settings' | 'science';
 
 const STORAGE_KEY = 'sip-ai-state-v2';
@@ -47,9 +47,20 @@ function saveState(state: HydrationState) {
 }
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(() => {
-    try { return JSON.parse(localStorage.getItem('sip-ai-session') || 'null'); } catch { return null; }
-  });
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthReady(true);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setAuthReady(true);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const [state, setState] = useState<HydrationState>(() => {
     const s = loadState();
@@ -174,13 +185,12 @@ export default function App() {
 
   const showBottomNav = page === 'home' || page === 'analytics' || page === 'settings';
 
+  if (!authReady) return null;
+
   if (!session) {
     return (
       <ThemeContext.Provider value={darkMode}>
-        <LoginPage onLogin={(s) => {
-          localStorage.setItem('sip-ai-session', JSON.stringify(s));
-          setSession(s);
-        }} />
+        <LoginPage onLogin={(s) => setSession(s)} />
       </ThemeContext.Provider>
     );
   }
@@ -281,7 +291,7 @@ export default function App() {
 
       {/* ── Page content ── */}
       {page === 'analytics' && <AnalyticsPage state={state} />}
-      {page === 'settings' && <SettingsPage profile={state.userProfile} onSave={handleSaveProfile} darkMode={darkMode} onToggleDark={handleToggleDark} session={session} onLogout={() => { localStorage.removeItem('sip-ai-session'); setSession(null); }} />}
+      {page === 'settings' && <SettingsPage profile={state.userProfile} onSave={handleSaveProfile} darkMode={darkMode} onToggleDark={handleToggleDark} session={session} onLogout={async () => { await supabase.auth.signOut(); setSession(null); }} />}
 
       {/* ── Home page ── */}
       {page === 'home' && (
