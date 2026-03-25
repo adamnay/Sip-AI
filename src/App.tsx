@@ -50,6 +50,16 @@ function saveState(state: HydrationState) {
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [state, setState] = useState<HydrationState>(() => {
+    const s = loadState();
+    return applyTimeDecay(s);
+  });
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [page, setPage] = useState<Page>('home');
+  const [selectedDrinkType, setSelectedDrinkType] = useState<DrinkType | null>(null);
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    try { return localStorage.getItem('sip-ai-dark') === 'true'; } catch { return false; }
+  });
 
   // Safety net: force ready after 3s so app never stays blank
   useEffect(() => {
@@ -58,21 +68,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Always prefer cloud state — it is the single source of truth
     const mergeCloud = async (session: Session | null) => {
       if (session?.user?.id) {
         try {
           const cloud = await loadStateFromCloud(session.user.id);
           if (cloud) {
-            setState(prev => {
-              // Prefer cloud if it has drinks logged, otherwise use whichever is more active
-              const cloudHasData = (cloud.drinkLog?.length ?? 0) > 0 || (cloud.activityLog?.length ?? 0) > 0;
-              const localHasData = (prev.drinkLog?.length ?? 0) > 0 || (prev.activityLog?.length ?? 0) > 0;
-              let merged: typeof cloud;
-              if (cloudHasData && !localHasData) merged = cloud;
-              else if (localHasData && !cloudHasData) merged = prev;
-              else merged = (cloud.lastUpdate ?? 0) >= (prev.lastUpdate ?? 0) ? cloud : prev;
-              return applyTimeDecay({ ...createInitialState(), ...merged });
-            });
+            setState(_ => applyTimeDecay({ ...createInitialState(), ...cloud }));
+            // Restore dark mode preference if it was saved to cloud
+            if (typeof (cloud as Record<string, unknown>)._darkMode === 'boolean') {
+              setDarkMode((cloud as Record<string, unknown>)._darkMode as boolean);
+            }
           }
         } catch { /* ignore cloud errors, keep local state */ }
       }
@@ -84,25 +90,16 @@ export default function App() {
       setAuthReady(true);
     }).catch(() => setAuthReady(true));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
-      await mergeCloud(session);
+      // Only pull from cloud on actual sign-in, not token refresh or other events
+      if (event === 'SIGNED_IN') {
+        await mergeCloud(session);
+      }
       setAuthReady(true);
     });
     return () => subscription.unsubscribe();
   }, []);
-
-  const [state, setState] = useState<HydrationState>(() => {
-    const s = loadState();
-    return applyTimeDecay(s);
-  });
-
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const [page, setPage] = useState<Page>('home');
-  const [selectedDrinkType, setSelectedDrinkType] = useState<DrinkType | null>(null);
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    try { return localStorage.getItem('sip-ai-dark') === 'true'; } catch { return false; }
-  });
 
   useEffect(() => {
     try { localStorage.setItem('sip-ai-dark', String(darkMode)); } catch { /* ignore */ }
@@ -114,16 +111,74 @@ export default function App() {
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const decayIntervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const syncTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Timestamp of last cloud save — used to suppress real-time echoes from our own saves
+  const lastSaveTimestampRef = useRef<number>(0);
+  // Tracks the "user action" signature — changes only when a user takes an action (not during decay)
+  const prevSyncKeyRef = useRef<string>('');
 
-  // Debounced cloud save whenever state changes
+  // Save to cloud only on user actions, not on every decay tick
   useEffect(() => {
     if (!session?.user?.id) return;
+    // This key changes only when something the user did changes (not decay)
+    const syncKey = [
+      state.drinkLog.length,
+      state.activityLog.length,
+      state.hangoverMode ? '1' : '0',
+      JSON.stringify(state.userProfile),
+      darkMode ? '1' : '0',
+    ].join('|');
+    if (syncKey === prevSyncKeyRef.current) return; // decay-only update — skip cloud save
+    prevSyncKeyRef.current = syncKey;
     clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
-      saveStateToCloud(session.user.id, state);
-    }, 2000);
+      lastSaveTimestampRef.current = Date.now();
+      // Embed darkMode in state so it syncs to other devices
+      saveStateToCloud(session.user.id, { ...state, _darkMode: darkMode } as HydrationState);
+    }, 1000);
     return () => clearTimeout(syncTimerRef.current);
-  }, [state, session]);
+  }, [state, session, darkMode]);
+
+  // Real-time cross-device sync: receive changes made on other devices
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const channel = supabase
+      .channel(`hydration-sync-${session.user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'hydration_states', filter: `user_id=eq.${session.user.id}` },
+        (payload) => {
+          // Suppress echoes from our own saves (cloud event arrives ~1–2s after we save)
+          if (Date.now() - lastSaveTimestampRef.current < 5000) return;
+          const cloudState = (payload.new as Record<string, unknown>)?.state as HydrationState | undefined;
+          if (!cloudState) return;
+          setState(prev => {
+            // Compare drink and activity IDs — don't rely on lastUpdate (decay bumps it constantly)
+            const localDrinkIds = new Set(prev.drinkLog?.map(d => d.id) ?? []);
+            const cloudDrinkIds = new Set(cloudState.drinkLog?.map(d => d.id) ?? []);
+            const drinkSetsMatch =
+              localDrinkIds.size === cloudDrinkIds.size &&
+              [...cloudDrinkIds].every(id => localDrinkIds.has(id));
+            const localActivityIds = new Set(prev.activityLog?.map(a => a.id) ?? []);
+            const cloudActivityIds = new Set(cloudState.activityLog?.map(a => a.id) ?? []);
+            const activitySetsMatch =
+              localActivityIds.size === cloudActivityIds.size &&
+              [...cloudActivityIds].every(id => localActivityIds.has(id));
+            // Accept cloud state if any user-visible data differs
+            const profileMatch = JSON.stringify(cloudState.userProfile) === JSON.stringify(prev.userProfile);
+            if (!drinkSetsMatch || !activitySetsMatch || cloudState.hangoverMode !== prev.hangoverMode || !profileMatch) {
+              // Also sync dark mode preference if present
+              if (typeof (cloudState as Record<string, unknown>)._darkMode === 'boolean') {
+                setDarkMode((cloudState as Record<string, unknown>)._darkMode as boolean);
+              }
+              return applyTimeDecay({ ...createInitialState(), ...cloudState });
+            }
+            return prev;
+          });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.user?.id]);
 
   useEffect(() => {
     decayIntervalRef.current = setInterval(() => {
@@ -336,7 +391,7 @@ export default function App() {
 
       {/* ── Page content ── */}
       {page === 'analytics' && <AnalyticsPage state={state} />}
-      {page === 'settings' && <SettingsPage profile={state.userProfile} onSave={handleSaveProfile} darkMode={darkMode} onToggleDark={handleToggleDark} session={session} onLogout={() => { setSession(null); supabase.auth.signOut().catch(() => {}); }} />}
+      {page === 'settings' && <SettingsPage profile={state.userProfile} onSave={handleSaveProfile} darkMode={darkMode} onToggleDark={handleToggleDark} session={session} onLogout={async () => { await supabase.auth.signOut().catch(() => {}); setSession(null); }} />}
 
       {/* ── Home page ── */}
       {page === 'home' && (
