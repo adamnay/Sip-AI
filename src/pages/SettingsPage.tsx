@@ -4,12 +4,15 @@ import { getDailyTargetOz } from '../engine/hydrationEngine';
 import { PersonIcon, LockIcon, GearIcon, WaterIcon } from '../components/Icons';
 import { useTheme, getTheme } from '../context/ThemeContext';
 
+interface Session { username: string; name: string; }
+
 interface Props {
   profile: UserProfile;
   onSave: (profile: UserProfile) => void;
   darkMode: boolean;
   onToggleDark: () => void;
   onLogout: () => void;
+  session: Session | null;
 }
 
 function InputField({
@@ -90,7 +93,11 @@ function SectionHeader({ icon, title, sub, theme }: { icon: React.ReactNode; tit
   );
 }
 
-export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, onLogout }: Props) {
+function getAccounts() {
+  try { return JSON.parse(localStorage.getItem('sip-ai-accounts') || '[]'); } catch { return []; }
+}
+
+export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, onLogout, session }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
   const [form, setForm] = useState({
@@ -126,6 +133,14 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
     if (!passwordForm.current) { setPasswordMsg('Enter your current password'); return; }
     if (passwordForm.next.length < 6) { setPasswordMsg('New password must be 6+ characters'); return; }
     if (passwordForm.next !== passwordForm.confirm) { setPasswordMsg('Passwords do not match'); return; }
+    const accounts = getAccounts();
+    const idx = accounts.findIndex((a: { username: string }) =>
+      a.username.toLowerCase() === session?.username?.toLowerCase()
+    );
+    if (idx === -1) { setPasswordMsg('Account not found'); return; }
+    if (accounts[idx].password !== passwordForm.current) { setPasswordMsg('Current password incorrect'); return; }
+    accounts[idx].password = passwordForm.next;
+    localStorage.setItem('sip-ai-accounts', JSON.stringify(accounts));
     setPasswordMsg('Password updated');
     setPasswordForm({ current: '', next: '', confirm: '' });
     setTimeout(() => setPasswordMsg(''), 3000);
@@ -207,7 +222,7 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
           </div>
         </div>
 
-        {/* Profile section */}
+        {/* Account section */}
         <div style={{
           background: theme.card,
           borderRadius: 20,
@@ -217,13 +232,33 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
         }}>
           <SectionHeader
             icon={<PersonIcon size={18} color={theme.textSecondary} />}
-            title="Personal Info"
-            sub="Your name and contact"
+            title="Account"
+            sub="Your login details"
             theme={theme}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <InputField label="NAME" value={form.name} onChange={set('name')} placeholder="Your name" theme={theme} />
-            <InputField label="EMAIL" value={form.email} onChange={set('email')} placeholder="you@example.com" type="email" theme={theme} />
+            {/* Name */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: theme.textSecondary, letterSpacing: '0.04em' }}>NAME</label>
+              <div style={{
+                padding: '12px 14px', borderRadius: 12,
+                background: theme.inputBg, border: `1px solid ${theme.cardBorder}`,
+                fontSize: 15, color: theme.textPrimary, fontWeight: 500,
+              }}>
+                {session?.name || '—'}
+              </div>
+            </div>
+            {/* Username */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: theme.textSecondary, letterSpacing: '0.04em' }}>USERNAME</label>
+              <div style={{
+                padding: '12px 14px', borderRadius: 12,
+                background: theme.inputBg, border: `1px solid ${theme.cardBorder}`,
+                fontSize: 15, color: theme.textSecondary,
+              }}>
+                @{session?.username || '—'}
+              </div>
+            </div>
           </div>
         </div>
 

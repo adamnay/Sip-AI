@@ -177,7 +177,10 @@ export default function App() {
   if (!session) {
     return (
       <ThemeContext.Provider value={darkMode}>
-        <LoginPage onLogin={(s) => setSession(s)} />
+        <LoginPage onLogin={(s) => {
+          localStorage.setItem('sip-ai-session', JSON.stringify(s));
+          setSession(s);
+        }} />
       </ThemeContext.Provider>
     );
   }
@@ -278,7 +281,7 @@ export default function App() {
 
       {/* ── Page content ── */}
       {page === 'analytics' && <AnalyticsPage state={state} />}
-      {page === 'settings' && <SettingsPage profile={state.userProfile} onSave={handleSaveProfile} darkMode={darkMode} onToggleDark={handleToggleDark} onLogout={() => { localStorage.removeItem('sip-ai-session'); setSession(null); }} />}
+      {page === 'settings' && <SettingsPage profile={state.userProfile} onSave={handleSaveProfile} darkMode={darkMode} onToggleDark={handleToggleDark} session={session} onLogout={() => { localStorage.removeItem('sip-ai-session'); setSession(null); }} />}
 
       {/* ── Home page ── */}
       {page === 'home' && (
