@@ -1,20 +1,14 @@
 import { useState } from 'react';
 import type { UserProfile } from '../engine/hydrationEngine';
 import { getDailyTargetOz } from '../engine/hydrationEngine';
-import { PersonIcon, LockIcon, GearIcon, WaterIcon } from '../components/Icons';
+import { GearIcon, WaterIcon } from '../components/Icons';
 import { useTheme, getTheme } from '../context/ThemeContext';
-
-import type { Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
 
 interface Props {
   profile: UserProfile;
   onSave: (profile: UserProfile) => void;
   darkMode: boolean;
   onToggleDark: () => void;
-  onLogout: () => void | Promise<void>;
-  onSyncNow?: () => Promise<void>;
-  session: Session | null;
 }
 
 function InputField({
@@ -95,8 +89,7 @@ function SectionHeader({ icon, title, sub, theme }: { icon: React.ReactNode; tit
   );
 }
 
-
-export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, onLogout, onSyncNow, session }: Props) {
+export default function SettingsPage({ profile, onSave, darkMode, onToggleDark }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
   const [form, setForm] = useState({
@@ -109,12 +102,6 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
   });
 
   const [saved, setSaved] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState<string | null>(null);
-  const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
-  const [passwordMsg, setPasswordMsg] = useState('');
 
   const set = (key: string) => (v: string) => setForm(f => ({ ...f, [key]: v }));
 
@@ -132,34 +119,6 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
     setTimeout(() => setSaved(false), 2500);
   };
 
-  const handleSyncNow = async () => {
-    if (!onSyncNow) return;
-    setSyncing(true);
-    setSyncMsg(null);
-    try {
-      await onSyncNow();
-      setSyncMsg('Synced successfully');
-    } catch (e: unknown) {
-      setSyncMsg(e instanceof Error ? e.message : 'Sync failed');
-    } finally {
-      setSyncing(false);
-      setTimeout(() => setSyncMsg(null), 4000);
-    }
-  };
-
-  const handlePasswordReset = async () => {
-    if (!passwordForm.current) { setPasswordMsg('Enter your current password'); return; }
-    if (passwordForm.next.length < 6) { setPasswordMsg('New password must be 6+ characters'); return; }
-    if (passwordForm.next !== passwordForm.confirm) { setPasswordMsg('Passwords do not match'); return; }
-    // Password is managed by Supabase — update via their API
-    const { error } = await supabase.auth.updateUser({ password: passwordForm.next });
-    if (error) { setPasswordMsg(error.message); return; }
-    setPasswordMsg('Password updated');
-    setPasswordForm({ current: '', next: '', confirm: '' });
-    setTimeout(() => setPasswordMsg(''), 3000);
-  };
-
-  // Preview the personalized daily target
   const previewProfile: UserProfile = {
     name: form.name,
     email: form.email,
@@ -176,7 +135,7 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
       minHeight: '100dvh',
       maxWidth: 420,
       margin: '0 auto',
-      paddingBottom: 'calc(140px + env(safe-area-inset-bottom, 0px))',
+      paddingBottom: 'calc(120px + env(safe-area-inset-bottom, 0px))',
     }}>
       {/* Header */}
       <div style={{ padding: '20px 20px 8px' }}>
@@ -204,7 +163,6 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
               <p style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Dark Mode</p>
               <p style={{ fontSize: 12, color: theme.textSecondary, margin: '2px 0 0' }}>Switch to a darker theme</p>
             </div>
-            {/* Toggle switch */}
             <button
               onClick={onToggleDark}
               style={{
@@ -232,46 +190,6 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
                 display: 'block',
               }} />
             </button>
-          </div>
-        </div>
-
-        {/* Account section */}
-        <div style={{
-          background: theme.card,
-          borderRadius: 20,
-          padding: '16px',
-          boxShadow: theme.cardShadow,
-          border: `1px solid ${theme.cardBorder}`,
-        }}>
-          <SectionHeader
-            icon={<PersonIcon size={18} color={theme.textSecondary} />}
-            title="Account"
-            sub="Your login details"
-            theme={theme}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {/* Name */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: theme.textSecondary, letterSpacing: '0.04em' }}>NAME</label>
-              <div style={{
-                padding: '12px 14px', borderRadius: 12,
-                background: theme.inputBg, border: `1px solid ${theme.cardBorder}`,
-                fontSize: 15, color: theme.textPrimary, fontWeight: 500,
-              }}>
-                {session?.user?.user_metadata?.name || '—'}
-              </div>
-            </div>
-            {/* Email */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: theme.textSecondary, letterSpacing: '0.04em' }}>EMAIL</label>
-              <div style={{
-                padding: '12px 14px', borderRadius: 12,
-                background: theme.inputBg, border: `1px solid ${theme.cardBorder}`,
-                fontSize: 15, color: theme.textSecondary,
-              }}>
-                {session?.user?.email || '—'}
-              </div>
-            </div>
           </div>
         </div>
 
@@ -371,245 +289,6 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
           }}
         >
           {saved ? 'Saved!' : 'Save Settings'}
-        </button>
-
-        {/* Cloud Sync */}
-        {session && (
-          <div style={{
-            background: theme.card,
-            borderRadius: 20,
-            padding: '16px',
-            boxShadow: theme.cardShadow,
-            border: `1px solid ${theme.cardBorder}`,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Cloud Sync</p>
-                <p style={{ fontSize: 12, color: theme.textSecondary, margin: '2px 0 0' }}>Pull latest data from cloud</p>
-              </div>
-              <button
-                onClick={handleSyncNow}
-                disabled={syncing}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 10,
-                  border: `1px solid ${theme.cardBorder}`,
-                  background: syncing ? 'rgba(0,0,0,0.04)' : theme.inputBg,
-                  color: theme.textPrimary,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: syncing ? 'default' : 'pointer',
-                  opacity: syncing ? 0.6 : 1,
-                  fontFamily: 'inherit',
-                }}
-              >
-                {syncing ? 'Syncing...' : 'Sync Now'}
-              </button>
-            </div>
-            {syncMsg && (
-              <p style={{
-                fontSize: 12,
-                marginTop: 8,
-                color: syncMsg === 'Synced successfully' ? '#16a34a' : '#dc2626',
-                fontWeight: 500,
-                margin: '8px 0 0',
-              }}>
-                {syncMsg}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Password section */}
-        <div style={{
-          background: theme.card,
-          borderRadius: 20,
-          padding: '16px',
-          boxShadow: theme.cardShadow,
-          border: `1px solid ${theme.cardBorder}`,
-        }}>
-          <SectionHeader
-            icon={<LockIcon size={18} color={theme.textSecondary} />}
-            title="Password"
-            sub="Update your account password"
-            theme={theme}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <InputField
-              label="CURRENT PASSWORD"
-              value={passwordForm.current}
-              onChange={v => setPasswordForm(f => ({ ...f, current: v }))}
-              placeholder="••••••••"
-              type="password"
-              theme={theme}
-            />
-            <InputField
-              label="NEW PASSWORD"
-              value={passwordForm.next}
-              onChange={v => setPasswordForm(f => ({ ...f, next: v }))}
-              placeholder="••••••••"
-              type="password"
-              theme={theme}
-            />
-            <InputField
-              label="CONFIRM NEW PASSWORD"
-              value={passwordForm.confirm}
-              onChange={v => setPasswordForm(f => ({ ...f, confirm: v }))}
-              placeholder="••••••••"
-              type="password"
-              theme={theme}
-            />
-          </div>
-          {passwordMsg && (
-            <p style={{
-              fontSize: 12,
-              marginTop: 10,
-              color: passwordMsg === 'Password updated' ? '#16a34a' : '#dc2626',
-              fontWeight: 500,
-            }}>
-              {passwordMsg}
-            </p>
-          )}
-          <button
-            onClick={handlePasswordReset}
-            style={{
-              marginTop: 12,
-              width: '100%',
-              background: darkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
-              color: theme.textPrimary,
-              border: `1px solid ${theme.cardBorder}`,
-              borderRadius: 12,
-              padding: '12px',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Update Password
-          </button>
-        </div>
-
-        {/* Log out */}
-        <button
-          onClick={() => setShowLogoutConfirm(true)}
-          style={{
-            width: '100%',
-            background: 'transparent',
-            color: '#dc2626',
-            border: '1px solid rgba(220,38,38,0.25)',
-            borderRadius: 16,
-            padding: '15px 20px',
-            fontSize: 15,
-            fontWeight: 600,
-            cursor: 'pointer',
-            letterSpacing: '-0.01em',
-            fontFamily: 'inherit',
-          }}
-        >
-          Log Out
-        </button>
-
-        {/* Logout confirmation modal */}
-        {showLogoutConfirm && (
-          <div
-            onClick={() => setShowLogoutConfirm(false)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.45)',
-              zIndex: 100,
-              display: 'flex',
-              alignItems: 'flex-end',
-              justifyContent: 'center',
-              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-            }}
-          >
-            <div
-              onClick={e => e.stopPropagation()}
-              style={{
-                background: theme.card,
-                borderRadius: '24px 24px 0 0',
-                padding: '28px 20px 20px',
-                width: '100%',
-                maxWidth: 420,
-                boxShadow: '0 -8px 40px rgba(0,0,0,0.2)',
-              }}
-            >
-              <p style={{ fontSize: 18, fontWeight: 700, color: theme.textPrimary, margin: '0 0 6px', textAlign: 'center' }}>
-                Log Out?
-              </p>
-              <p style={{ fontSize: 14, color: theme.textSecondary, margin: '0 0 24px', textAlign: 'center' }}>
-                You'll need to sign back in to access your data.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <button
-                  disabled={loggingOut}
-                  onClick={() => {
-                    setLoggingOut(true);
-                    onLogout(); // setSession(null) inside causes immediate unmount
-                  }}
-                  style={{
-                    width: '100%',
-                    background: '#dc2626',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 14,
-                    padding: '15px',
-                    fontSize: 16,
-                    fontWeight: 700,
-                    cursor: loggingOut ? 'default' : 'pointer',
-                    opacity: loggingOut ? 0.7 : 1,
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  {loggingOut ? 'Logging out…' : 'Yes, Log Out'}
-                </button>
-                <button
-                  onClick={() => setShowLogoutConfirm(false)}
-                  style={{
-                    width: '100%',
-                    background: 'transparent',
-                    color: theme.textSecondary,
-                    border: `1px solid ${theme.cardBorder}`,
-                    borderRadius: 14,
-                    padding: '15px',
-                    fontSize: 16,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Delete account */}
-        <button
-          onClick={async () => {
-            if (!window.confirm('Delete your account? This cannot be undone.')) return;
-            await supabase.auth.signOut();
-            localStorage.clear();
-            onLogout();
-          }}
-          style={{
-            width: '100%',
-            background: 'transparent',
-            color: theme.textTertiary,
-            border: 'none',
-            borderRadius: 16,
-            padding: '10px 20px',
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: 'pointer',
-            letterSpacing: '-0.01em',
-            fontFamily: 'inherit',
-            textDecoration: 'underline',
-          }}
-        >
-          Delete Account
         </button>
 
       </div>

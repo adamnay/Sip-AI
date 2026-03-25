@@ -1,7 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { supabase } from './lib/supabase';
-import { loadStateFromCloud, saveStateToCloud } from './lib/syncState';
-import type { Session } from '@supabase/supabase-js';
 import { ThemeContext, getTheme } from './context/ThemeContext';
 import {
   addDrink,
@@ -26,7 +23,6 @@ import BottomNav from './components/BottomNav';
 import SciencePage from './pages/SciencePage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
-import LoginPage from './pages/LoginPage';
 import { FlaskIcon, StarIcon } from './components/Icons';
 
 type Page = 'home' | 'analytics' | 'settings' | 'science';
@@ -48,11 +44,6 @@ function saveState(state: HydrationState) {
 }
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [authReady, setAuthReady] = useState(false);
-  // cloudLoaded gates cloud saves — prevents empty local state from overwriting cloud
-  // before mergeCloud finishes its async network call
-  const [cloudLoaded, setCloudLoaded] = useState(false);
   const [state, setState] = useState<HydrationState>(() => {
     const s = loadState();
     return applyTimeDecay(s);
@@ -64,52 +55,6 @@ export default function App() {
     try { return localStorage.getItem('sip-ai-dark') === 'true'; } catch { return false; }
   });
 
-  // Safety net: force ready after 3s so app never stays blank
-  useEffect(() => {
-    const t = setTimeout(() => setAuthReady(true), 3000);
-    return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    const mergeCloud = async (session: Session | null) => {
-      if (session?.user?.id) {
-        try {
-          const cloud = await loadStateFromCloud(session.user.id);
-          if (cloud && ((cloud.drinkLog?.length ?? 0) + (cloud.activityLog?.length ?? 0)) > 0) {
-            // Cloud has real data — always use it
-            setState(_ => applyTimeDecay({ ...createInitialState(), ...cloud }));
-            if (typeof (cloud as unknown as Record<string, unknown>)._darkMode === 'boolean') {
-              setDarkMode((cloud as unknown as Record<string, unknown>)._darkMode as boolean);
-            }
-          } else {
-            // Cloud empty — push local state to cloud so other devices can get it
-            const local = loadState();
-            await saveStateToCloud(session.user.id, { ...local, _darkMode: darkMode } as HydrationState);
-          }
-        } catch { /* keep local state on error */ }
-      }
-      setCloudLoaded(true);
-    };
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      await mergeCloud(session);
-      setAuthReady(true);
-    }).catch(() => { setCloudLoaded(true); setAuthReady(true); });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-      if (event === 'SIGNED_IN') {
-        setCloudLoaded(false); // block saves while we fetch fresh cloud state
-        await mergeCloud(session);
-      } else if (event === 'SIGNED_OUT') {
-        setCloudLoaded(false);
-      }
-      setAuthReady(true);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
   useEffect(() => {
     try { localStorage.setItem('sip-ai-dark', String(darkMode)); } catch { /* ignore */ }
     document.body.classList.toggle('dark', darkMode);
@@ -119,30 +64,6 @@ export default function App() {
 
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const decayIntervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
-  const syncTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  // Tracks the "user action" signature — changes only when a user takes an action (not during decay)
-  const prevSyncKeyRef = useRef<string>('');
-
-  // Save to cloud only on user actions, not on every decay tick
-  useEffect(() => {
-    // CRITICAL: don't save until cloud state has been loaded — prevents overwriting cloud with stale local data
-    if (!session?.user?.id || !cloudLoaded) return;
-    // This key changes only when something the user did changes (not decay)
-    const syncKey = [
-      state.drinkLog.length,
-      state.activityLog.length,
-      state.hangoverMode ? '1' : '0',
-      JSON.stringify(state.userProfile),
-      darkMode ? '1' : '0',
-    ].join('|');
-    if (syncKey === prevSyncKeyRef.current) return; // decay-only update — skip cloud save
-    prevSyncKeyRef.current = syncKey;
-    clearTimeout(syncTimerRef.current);
-    syncTimerRef.current = setTimeout(() => {
-      saveStateToCloud(session.user.id, { ...state, _darkMode: darkMode } as HydrationState);
-    }, 2000);
-    return () => clearTimeout(syncTimerRef.current);
-  }, [state, session, darkMode, cloudLoaded]);
 
   useEffect(() => {
     decayIntervalRef.current = setInterval(() => {
@@ -245,20 +166,6 @@ export default function App() {
 
   const showBottomNav = page === 'home' || page === 'analytics' || page === 'settings';
 
-  if (!authReady) return (
-    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f2f3f7' }}>
-      <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid rgba(0,0,0,0.1)', borderTopColor: '#000', animation: 'spin 0.8s linear infinite' }} />
-    </div>
-  );
-
-  if (!session) {
-    return (
-      <ThemeContext.Provider value={darkMode}>
-        <LoginPage onLogin={(s) => setSession(s)} />
-      </ThemeContext.Provider>
-    );
-  }
-
   return (
     <ThemeContext.Provider value={darkMode}>
     <div
@@ -360,17 +267,6 @@ export default function App() {
         onSave={handleSaveProfile}
         darkMode={darkMode}
         onToggleDark={handleToggleDark}
-        session={session}
-        onLogout={() => { setSession(null); supabase.auth.signOut().catch(() => {}); }}
-        onSyncNow={async () => {
-          if (!session?.user?.id) throw new Error('Not logged in');
-          const cloud = await loadStateFromCloud(session.user.id);
-          if (!cloud) throw new Error('No data in cloud yet');
-          setState(_ => applyTimeDecay({ ...createInitialState(), ...cloud }));
-          if (typeof (cloud as unknown as Record<string, unknown>)._darkMode === 'boolean') {
-            setDarkMode((cloud as unknown as Record<string, unknown>)._darkMode as boolean);
-          }
-        }}
       />}
 
       {/* ── Home page ── */}
