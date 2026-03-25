@@ -156,7 +156,7 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
       minHeight: '100dvh',
       maxWidth: 420,
       margin: '0 auto',
-      paddingBottom: 100,
+      paddingBottom: 140,
     }}>
       {/* Header */}
       <div style={{ padding: '20px 20px 8px' }}>
