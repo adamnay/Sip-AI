@@ -65,7 +65,7 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete }: Pr
           alignItems: 'center',
           justifyContent: 'center',
           gap: 3,
-          padding: '13px 0 10px',
+          padding: '17px 0 13px',
           background: 'none',
           border: 'none',
           cursor: 'pointer',
@@ -122,7 +122,7 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete }: Pr
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        paddingBottom: 10,
+        paddingBottom: 13,
         gap: 4,
       }}>
         <button

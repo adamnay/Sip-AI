@@ -142,6 +142,9 @@ export function ActivityIcon({ size = 24, color = 'currentColor' }: IconProps) {
 export function FlaskIcon({ size = 24, color = 'currentColor' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      {/* Liquid fill inside flask */}
+      <path d="M7.2 16.5 C6.2 18 5.8 19 5 20h14c-0.8-1-1.2-2-2.2-3.5 C15.4 14.8 15 13.5 15 11H9c0 2.5-0.4 3.8-1.8 5.5z" fill={color} stroke="none" opacity={0.35} />
+      {/* Flask outline */}
       <path d="M9 3h6v8l4 9H5l4-9V3z" />
       <line x1="9" y1="3" x2="15" y2="3" />
     </svg>
