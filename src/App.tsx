@@ -11,7 +11,6 @@ import {
   deactivateHangoverMode,
   loadAndMigrateState,
   saveUserProfile,
-  DEFAULT_VOLUMES,
 } from './engine/hydrationEngine';
 import type { DrinkType, HydrationState, DrinkOverrides, ActivityResult, UserProfile } from './engine/hydrationEngine';
 import HydrationRing from './components/HydrationRing';
@@ -89,18 +88,8 @@ export default function App() {
   }, []);
 
   const handleSelectDrink = useCallback((type: DrinkType) => {
-    if (type === 'alcohol') {
-      setSelectedDrinkType(type);
-      return;
-    }
-    const volumeMl = DEFAULT_VOLUMES[type];
-    setState((prev) => {
-      const decayed = applyTimeDecay(prev);
-      const { newState, entry } = addDrink(decayed, type, volumeMl, {});
-      showFeedback(entry.feedback);
-      return newState;
-    });
-  }, [showFeedback]);
+    setSelectedDrinkType(type);
+  }, []);
 
   const handleScanConfirm = useCallback((type: DrinkType, volumeMl: number, displayName: string) => {
     setState((prev) => {
