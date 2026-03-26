@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { UserProfile } from '../engine/hydrationEngine';
-import { getDailyTargetOz } from '../engine/hydrationEngine';
+import { getDailyTargetOz, computeDailyTargetFromAnswers } from '../engine/hydrationEngine';
 import { GearIcon, WaterIcon } from '../components/Icons';
 import { useTheme, getTheme } from '../context/ThemeContext';
 import SetupQuestionsModal from '../components/SetupQuestionsModal';
@@ -171,7 +171,10 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
     heightIn: form.heightIn ? parseInt(form.heightIn, 10) : null,
     weightLbs: form.weightLbs ? parseFloat(form.weightLbs) : null,
   };
-  const dailyOz = customDailyTargetOz ?? getDailyTargetOz(previewProfile);
+  const formWeight = parseFloat(form.weightLbs) || previewProfile.weightLbs || 155;
+  const dailyOz = onboardingAnswers
+    ? computeDailyTargetFromAnswers(onboardingAnswers, formWeight)
+    : getDailyTargetOz(previewProfile);
 
   const userName = session?.user?.user_metadata?.name || form.name || 'User';
   const userEmail = session?.user?.email || form.email || '';
