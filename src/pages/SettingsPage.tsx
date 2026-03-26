@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { UserProfile } from '../engine/hydrationEngine';
-import { getDailyTargetOz, computeDailyTargetFromAnswers } from '../engine/hydrationEngine';
-import { GearIcon, WaterIcon } from '../components/Icons';
+import { GearIcon } from '../components/Icons';
 import { useTheme, getTheme } from '../context/ThemeContext';
 import SetupQuestionsModal from '../components/SetupQuestionsModal';
 
@@ -101,28 +100,6 @@ function SectionHeader({ icon, title, sub, theme }: { icon: React.ReactNode; tit
 export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, session, onLogout, onSetupComplete, profileSummary, customDailyTargetOz, onboardingAnswers }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
-  const [form, setForm] = useState({
-    name: profile.name,
-    email: profile.email,
-    age: profile.age !== null ? String(profile.age) : '',
-    heightFt: profile.heightFt !== null ? String(profile.heightFt) : '',
-    heightIn: profile.heightIn !== null ? String(profile.heightIn) : '',
-    weightLbs: profile.weightLbs !== null ? String(profile.weightLbs) : '',
-  });
-
-  // Sync form when profile updates externally (e.g. after setup questions)
-  useEffect(() => {
-    setForm({
-      name: profile.name,
-      email: profile.email,
-      age: profile.age !== null ? String(profile.age) : '',
-      heightFt: profile.heightFt !== null ? String(profile.heightFt) : '',
-      heightIn: profile.heightIn !== null ? String(profile.heightIn) : '',
-      weightLbs: profile.weightLbs !== null ? String(profile.weightLbs) : '',
-    });
-  }, [profile.age, profile.heightFt, profile.heightIn, profile.weightLbs]);
-
-  const [saved, setSaved] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -131,22 +108,6 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
   const [passwordError, setPasswordError] = useState('');
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
-
-  const set = (key: string) => (v: string) => setForm(f => ({ ...f, [key]: v }));
-
-  const handleSave = () => {
-    const updated: UserProfile = {
-      name: form.name.trim(),
-      email: form.email.trim(),
-      age: form.age ? parseInt(form.age, 10) : null,
-      heightFt: form.heightFt ? parseInt(form.heightFt, 10) : null,
-      heightIn: form.heightIn ? parseInt(form.heightIn, 10) : null,
-      weightLbs: form.weightLbs ? parseFloat(form.weightLbs) : null,
-    };
-    onSave(updated);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-  };
 
   const handlePasswordChange = async () => {
     setPasswordError('');
@@ -163,21 +124,8 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
     setTimeout(() => setPasswordSaved(false), 3000);
   };
 
-  const previewProfile: UserProfile = {
-    name: form.name,
-    email: form.email,
-    age: form.age ? parseInt(form.age, 10) : null,
-    heightFt: form.heightFt ? parseInt(form.heightFt, 10) : null,
-    heightIn: form.heightIn ? parseInt(form.heightIn, 10) : null,
-    weightLbs: form.weightLbs ? parseFloat(form.weightLbs) : null,
-  };
-  const formWeight = parseFloat(form.weightLbs) || previewProfile.weightLbs || 155;
-  const dailyOz = onboardingAnswers
-    ? computeDailyTargetFromAnswers(onboardingAnswers, formWeight)
-    : getDailyTargetOz(previewProfile);
-
-  const userName = session?.user?.user_metadata?.name || form.name || 'User';
-  const userEmail = session?.user?.email || form.email || '';
+  const userName = session?.user?.user_metadata?.name || profile.name || 'User';
+  const userEmail = session?.user?.email || profile.email || '';
 
   return (
     <div style={{
@@ -352,84 +300,6 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
           </div>
         </div>
 
-        {/* Body info */}
-        <div style={{
-          background: theme.card,
-          borderRadius: 20,
-          padding: '16px',
-          boxShadow: theme.cardShadow,
-          border: `1px solid ${theme.cardBorder}`,
-        }}>
-          <SectionHeader
-            icon={<WaterIcon size={18} color={theme.textSecondary} />}
-            title="Body Info"
-            sub="Used to personalize your hydration targets"
-            theme={theme}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <InputField label="AGE" value={form.age} onChange={set('age')} placeholder="30" type="number" unit="yrs" theme={theme} />
-
-            {/* Height: ft + in side by side */}
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: theme.textSecondary, letterSpacing: '0.04em', display: 'block', marginBottom: 6 }}>
-                HEIGHT
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="number"
-                    value={form.heightFt}
-                    onChange={e => set('heightFt')(e.target.value)}
-                    placeholder="5"
-                    inputMode="numeric"
-                    style={{
-                      width: '100%', border: `1px solid ${theme.cardBorder}`, borderRadius: 12,
-                      padding: '12px 36px 12px 14px', fontSize: 15, color: theme.textPrimary,
-                      background: theme.inputBg, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
-                    }}
-                  />
-                  <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: theme.textTertiary, pointerEvents: 'none' }}>ft</span>
-                </div>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="number"
-                    value={form.heightIn}
-                    onChange={e => set('heightIn')(e.target.value)}
-                    placeholder="10"
-                    inputMode="numeric"
-                    style={{
-                      width: '100%', border: `1px solid ${theme.cardBorder}`, borderRadius: 12,
-                      padding: '12px 36px 12px 14px', fontSize: 15, color: theme.textPrimary,
-                      background: theme.inputBg, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
-                    }}
-                  />
-                  <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: theme.textTertiary, pointerEvents: 'none' }}>in</span>
-                </div>
-              </div>
-            </div>
-
-            <InputField label="WEIGHT" value={form.weightLbs} onChange={set('weightLbs')} placeholder="155" type="number" unit="lbs" theme={theme} />
-          </div>
-
-          {/* Personalized target preview */}
-          {(form.weightLbs || form.age) && (
-            <div style={{
-              marginTop: 14,
-              padding: '10px 14px',
-              background: 'rgba(6,182,212,0.06)',
-              borderRadius: 10,
-              border: '1px solid rgba(6,182,212,0.15)',
-            }}>
-              <p style={{ fontSize: 12, color: '#0891b2', fontWeight: 500, margin: 0 }}>
-                Your personalized daily target: <strong>{dailyOz} oz</strong>
-              </p>
-              <p style={{ fontSize: 11, color: theme.textSecondary, margin: '2px 0 0' }}>
-                {customDailyTargetOz ? 'Based on your setup answers' : 'Based on your weight'} — hydration decay will adjust accordingly
-              </p>
-            </div>
-          )}
-        </div>
-
         {/* My Profile card */}
         <div style={{
           background: theme.card, borderRadius: 20, padding: '16px',
@@ -489,26 +359,6 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
             </svg>
           </button>
         </div>
-
-        {/* Save button */}
-        <button
-          onClick={handleSave}
-          style={{
-            width: '100%',
-            background: saved ? '#16a34a' : '#111827',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: 16,
-            padding: '15px 20px',
-            fontSize: 15,
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'background 0.3s ease',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          {saved ? 'Saved!' : 'Save Settings'}
-        </button>
 
         {/* Sign out */}
         {session && (
