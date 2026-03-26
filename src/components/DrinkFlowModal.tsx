@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { analyzeDrinkName } from '../api/drinkAnalyzer';
 import { useTheme, getTheme } from '../context/ThemeContext';
 import type { DrinkType, DrinkOverrides } from '../engine/hydrationEngine';
 import {
@@ -19,7 +20,7 @@ interface Props {
   onClose: () => void;
 }
 
-type FlowStep = 'size' | 'detail' | 'count';
+type FlowStep = 'size' | 'detail' | 'count' | 'other_input';
 
 interface FlowState {
   step: FlowStep;
@@ -30,6 +31,7 @@ interface FlowState {
   alcoholTypeMl: number;
   alcoholTypeOverrides: DrinkOverrides | null;
   alcoholTypeLabel: string;
+  otherDrinkName: string;
 }
 
 const SIZE_OPTIONS = [
@@ -127,6 +129,7 @@ const DETAIL_QUESTIONS: Partial<Record<DrinkType, DetailQuestion>> = {
       { label: 'Powder (1 scoop)', value: 'powder1', overrides: { hydrationPerMl: 0.055, electrolyte: true, label: 'Electrolyte Powder' } },
       { label: 'Powder (2+ scoops)', value: 'powder2', overrides: { hydrationPerMl: 0.065, electrolyte: true, label: 'Double Electrolytes' } },
       { label: 'Gatorade / LMNT', value: 'drink', overrides: { hydrationPerMl: 0.042, electrolyte: true, label: 'Electrolyte Drink' } },
+      { label: 'Other', value: 'other', overrides: { hydrationPerMl: 0.042, electrolyte: true, label: 'Electrolytes' } },
     ],
   },
 };
@@ -176,8 +179,11 @@ export default function DrinkFlowModal({ drinkType, onConfirm, onClose }: Props)
     alcoholTypeMl: 355,
     alcoholTypeOverrides: null,
     alcoholTypeLabel: '',
+    otherDrinkName: '',
   });
   const [customInputActive, setCustomInputActive] = useState(false);
+  const [analyzingOther, setAnalyzingOther] = useState(false);
+  const otherInputRef = useRef<HTMLInputElement>(null);
 
   // Reset state when a new drink type is selected
   useEffect(() => {
@@ -191,8 +197,10 @@ export default function DrinkFlowModal({ drinkType, onConfirm, onClose }: Props)
         alcoholTypeMl: 355,
         alcoholTypeOverrides: null,
         alcoholTypeLabel: '',
+        otherDrinkName: '',
       });
       setCustomInputActive(false);
+      setAnalyzingOther(false);
     }
   }, [drinkType]);
 
@@ -243,14 +251,47 @@ export default function DrinkFlowModal({ drinkType, onConfirm, onClose }: Props)
   };
 
   const handleDetailSelect = (option: DetailOption) => {
+    if (option.value === 'other') {
+      setFlow(prev => ({ ...prev, step: 'other_input', otherDrinkName: '' }));
+      setTimeout(() => otherInputRef.current?.focus(), 100);
+      return;
+    }
     let ml: number;
     if (flow.sizeOz === -1) {
       ml = Math.round(parseFloat(flow.customOzStr || '8') * 29.57);
     } else {
       const sizeOpt = SIZE_OPTIONS.find(s => s.oz === flow.sizeOz);
-      ml = sizeOpt ? sizeOpt.ml : 473; // fallback to medium
+      ml = sizeOpt ? sizeOpt.ml : 473;
     }
     onConfirm(drinkType, ml, option.overrides);
+  };
+
+  const handleOtherSubmit = async () => {
+    const name = flow.otherDrinkName.trim();
+    if (!name) return;
+    setAnalyzingOther(true);
+    try {
+      const analysis = await analyzeDrinkName(name, drinkType);
+      let ml: number;
+      if (flow.sizeOz === -1) {
+        ml = Math.round(parseFloat(flow.customOzStr || '8') * 29.57);
+      } else {
+        const sizeOpt = SIZE_OPTIONS.find(s => s.oz === flow.sizeOz);
+        ml = sizeOpt ? sizeOpt.ml : 473;
+      }
+      const overrides: DrinkOverrides = {
+        hydrationPerMl: analysis.hydrationPerMl,
+        caffeinePer100ml: analysis.caffeinePer100ml || undefined,
+        electrolyte: analysis.electrolyte || undefined,
+        label: analysis.label,
+      };
+      onConfirm(drinkType, ml, overrides);
+    } catch {
+      // fallback to generic
+      onConfirm(drinkType, 473, { label: name.slice(0, 20) });
+    } finally {
+      setAnalyzingOther(false);
+    }
   };
 
   const handleAlcoholTypeSelect = (alcoholType: typeof ALCOHOL_TYPES[0]) => {
@@ -471,6 +512,60 @@ export default function DrinkFlowModal({ drinkType, onConfirm, onClose }: Props)
                   );
                 })}
               </div>
+            </>
+          )}
+
+          {/* STEP: OTHER (AI analysis) */}
+          {flow.step === 'other_input' && (
+            <>
+              <p style={{ fontWeight: 700, fontSize: 16, color: theme.textPrimary, marginBottom: 6 }}>
+                What did you have?
+              </p>
+              <p style={{ fontSize: 13, color: theme.textSecondary, marginBottom: 14 }}>
+                AI will figure out the hydration for you.
+              </p>
+              <input
+                ref={otherInputRef}
+                type="text"
+                placeholder={`e.g. "Liquid IV", "Snapple Peach Tea"...`}
+                value={flow.otherDrinkName}
+                onChange={e => setFlow(prev => ({ ...prev, otherDrinkName: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && !analyzingOther && handleOtherSubmit()}
+                style={{
+                  width: '100%',
+                  border: `1px solid ${theme.cardBorder}`,
+                  borderRadius: 14,
+                  padding: '13px 16px',
+                  fontSize: 15,
+                  color: theme.textPrimary,
+                  background: theme.inputBg,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  fontFamily: 'inherit',
+                  marginBottom: 12,
+                }}
+              />
+              <button
+                onClick={handleOtherSubmit}
+                disabled={!flow.otherDrinkName.trim() || analyzingOther}
+                style={{
+                  width: '100%',
+                  background: theme.textPrimary,
+                  color: isDark ? '#0f1117' : '#ffffff',
+                  border: 'none',
+                  borderRadius: 14,
+                  padding: '14px',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: (!flow.otherDrinkName.trim() || analyzingOther) ? 'default' : 'pointer',
+                  opacity: (!flow.otherDrinkName.trim() || analyzingOther) ? 0.5 : 1,
+                  fontFamily: 'inherit',
+                  letterSpacing: '-0.01em',
+                  transition: 'opacity 0.15s ease',
+                }}
+              >
+                {analyzingOther ? 'Analyzing...' : 'Log Drink'}
+              </button>
             </>
           )}
 

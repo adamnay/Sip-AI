@@ -1,48 +1,79 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useTheme, getTheme } from '../context/ThemeContext';
 import { WaterIcon, CoffeeIcon } from '../components/Icons';
 import type { Session } from '@supabase/supabase-js';
+import type { UserProfile } from '../engine/hydrationEngine';
 
 interface Props {
-  onLogin: (session: Session) => void;
+  onLogin: (session: Session, profile?: Partial<UserProfile>) => void;
 }
 
-const QUESTIONS = [
+type QuestionType = 'choice' | 'slider_height' | 'slider_weight';
+
+interface Question {
+  id: string;
+  question: string;
+  sub: string;
+  icon: string;
+  type: QuestionType;
+  options: string[];
+  sliderMin?: number;
+  sliderMax?: number;
+  sliderDefault?: number;
+}
+
+const QUESTIONS: Question[] = [
   {
-    id: 'goal',
+    id: 'goal', type: 'choice',
     question: "What's your main goal?",
     sub: "We'll personalize your targets around this.",
     icon: 'target',
     options: ['More energy', 'Athletic performance', 'Weight management', 'Skin & glow', 'General wellness'],
   },
   {
-    id: 'currentIntake',
+    id: 'currentIntake', type: 'choice',
     question: 'How much water do you drink now?',
     sub: "Be honest — no judgement here.",
     icon: 'water',
     options: ['Barely any', 'A few glasses', 'About 8 cups/day', 'More than 8 cups'],
   },
   {
-    id: 'activityLevel',
+    id: 'activityLevel', type: 'choice',
     question: 'How active is your lifestyle?',
     sub: 'This affects how fast your body loses water.',
     icon: 'activity',
     options: ['Mostly sedentary', 'Light exercise', 'Moderately active', 'Very active', 'Athlete level'],
   },
   {
-    id: 'caffeine',
+    id: 'caffeine', type: 'choice',
     question: 'How much caffeine daily?',
     sub: 'Coffee, tea, energy drinks — all count.',
     icon: 'coffee',
     options: ['None at all', '1 cup/day', '2–3 cups/day', '4+ cups/day'],
   },
   {
-    id: 'alcohol',
+    id: 'alcohol', type: 'choice',
     question: 'How often do you drink alcohol?',
     sub: 'Helps us coach your hydration recovery.',
     icon: 'wine',
     options: ['Never', 'Rarely', 'Weekends', 'A few times/week', 'Daily'],
+  },
+  {
+    id: 'heightTotalIn', type: 'slider_height',
+    question: 'How tall are you?',
+    sub: 'Used to personalize your daily hydration target.',
+    icon: 'height',
+    options: [],
+    sliderMin: 48, sliderMax: 84, sliderDefault: 66,
+  },
+  {
+    id: 'weightLbs', type: 'slider_weight',
+    question: "What's your weight?",
+    sub: 'Helps us calculate your ideal daily intake.',
+    icon: 'weight',
+    options: [],
+    sliderMin: 80, sliderMax: 350, sliderDefault: 155,
   },
 ];
 
@@ -68,6 +99,20 @@ function QuestionIcon({ icon, color }: { icon: string; color: string }) {
       <line x1="9" y1="20" x2="15" y2="20" />
     </svg>
   );
+  if (icon === 'height') return (
+    <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="3" x2="12" y2="21" />
+      <polyline points="8,7 12,3 16,7" />
+      <polyline points="8,17 12,21 16,17" />
+    </svg>
+  );
+  if (icon === 'weight') return (
+    <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="10" width="18" height="11" rx="2" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+      <line x1="12" y1="14" x2="12" y2="17" />
+    </svg>
+  );
   return null;
 }
 
@@ -85,6 +130,15 @@ export default function LoginPage({ onLogin }: Props) {
   const [qIndex, setQIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [pendingSession, setPendingSession] = useState<Session | null>(null);
+  const [sliderValue, setSliderValue] = useState(66);
+
+  // Reset slider to default when landing on a slider question
+  useEffect(() => {
+    const q = QUESTIONS[qIndex];
+    if (q.type === 'slider_height' || q.type === 'slider_weight') {
+      setSliderValue(q.sliderDefault!);
+    }
+  }, [qIndex]);
 
   const inputStyle = {
     width: '100%',
@@ -124,9 +178,10 @@ export default function LoginPage({ onLogin }: Props) {
     if (error) { setError(error.message); return; }
     if (data.session) {
       setPendingSession(data.session);
+      setQIndex(0);
+      setAnswers({});
       setStep('onboarding');
     } else {
-      // Email confirmation required
       setError('Check your email to confirm your account, then sign in.');
     }
   };
@@ -139,16 +194,108 @@ export default function LoginPage({ onLogin }: Props) {
     if (qIndex < QUESTIONS.length - 1) {
       setQIndex(qIndex + 1);
     } else {
-      // Save onboarding answers to user metadata
+      // Build profile from answers
+      const profile: Partial<UserProfile> = {
+        name: name.trim(),
+        email: email.trim(),
+      };
+      const totalIn = parseInt(updated.heightTotalIn || '0');
+      if (totalIn) {
+        profile.heightFt = Math.floor(totalIn / 12);
+        profile.heightIn = totalIn % 12;
+      }
+      if (updated.weightLbs) {
+        profile.weightLbs = parseFloat(updated.weightLbs);
+      }
       await supabase.auth.updateUser({ data: { onboarding: updated } });
-      if (pendingSession) onLogin(pendingSession);
+      if (pendingSession) onLogin(pendingSession, profile);
     }
+  };
+
+  const handleSliderContinue = () => {
+    handleAnswer(String(Math.round(sliderValue)));
+  };
+
+  const trackFill = (val: number, min: number, max: number) => {
+    const pct = ((val - min) / (max - min)) * 100;
+    const filled = isDark ? 'rgba(255,255,255,0.9)' : '#111827';
+    const empty = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)';
+    return `linear-gradient(to right, ${filled} 0%, ${filled} ${pct}%, ${empty} ${pct}%, ${empty} 100%)`;
   };
 
   // ── Onboarding ─────────────────────────────────────────────────────────────
   if (step === 'onboarding') {
     const q = QUESTIONS[qIndex];
     const iconColor = isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.6)';
+
+    const renderSliderContent = () => {
+      if (q.type === 'slider_height') {
+        const totalIn = Math.round(sliderValue);
+        const ft = Math.floor(totalIn / 12);
+        const inches = totalIn % 12;
+        return (
+          <>
+            {/* Big value display */}
+            <div style={{ textAlign: 'center', marginBottom: 32 }}>
+              <span style={{ fontSize: 56, fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.04em', lineHeight: 1 }}>
+                {ft}
+              </span>
+              <span style={{ fontSize: 22, fontWeight: 600, color: theme.textSecondary, marginLeft: 4 }}>ft</span>
+              <span style={{ fontSize: 56, fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.04em', lineHeight: 1, marginLeft: 14 }}>
+                {inches}
+              </span>
+              <span style={{ fontSize: 22, fontWeight: 600, color: theme.textSecondary, marginLeft: 4 }}>in</span>
+            </div>
+            {/* Slider */}
+            <div style={{ marginBottom: 12 }}>
+              <input
+                type="range"
+                min={q.sliderMin}
+                max={q.sliderMax}
+                value={sliderValue}
+                onChange={e => setSliderValue(Number(e.target.value))}
+                style={{ background: trackFill(sliderValue, q.sliderMin!, q.sliderMax!) }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+                <span style={{ fontSize: 11, color: theme.textTertiary }}>4′ 0″</span>
+                <span style={{ fontSize: 11, color: theme.textTertiary }}>7′ 0″</span>
+              </div>
+            </div>
+          </>
+        );
+      }
+      if (q.type === 'slider_weight') {
+        const lbs = Math.round(sliderValue);
+        return (
+          <>
+            {/* Big value display */}
+            <div style={{ textAlign: 'center', marginBottom: 32 }}>
+              <span style={{ fontSize: 56, fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.04em', lineHeight: 1 }}>
+                {lbs}
+              </span>
+              <span style={{ fontSize: 22, fontWeight: 600, color: theme.textSecondary, marginLeft: 6 }}>lbs</span>
+            </div>
+            {/* Slider */}
+            <div style={{ marginBottom: 12 }}>
+              <input
+                type="range"
+                min={q.sliderMin}
+                max={q.sliderMax}
+                value={sliderValue}
+                onChange={e => setSliderValue(Number(e.target.value))}
+                style={{ background: trackFill(sliderValue, q.sliderMin!, q.sliderMax!) }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+                <span style={{ fontSize: 11, color: theme.textTertiary }}>{q.sliderMin} lbs</span>
+                <span style={{ fontSize: 11, color: theme.textTertiary }}>{q.sliderMax} lbs</span>
+              </div>
+            </div>
+          </>
+        );
+      }
+      return null;
+    };
+
     return (
       <div style={{
         background: theme.bg, minHeight: '100dvh', display: 'flex',
@@ -195,39 +342,62 @@ export default function LoginPage({ onLogin }: Props) {
           </p>
         </div>
 
-        {/* Options */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-          {q.options.map(option => (
+        {/* Choice options */}
+        {q.type === 'choice' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            {q.options.map(option => (
+              <button
+                key={option}
+                onClick={() => handleAnswer(option)}
+                style={{
+                  width: '100%', padding: '15px 18px',
+                  borderRadius: 16,
+                  border: `1px solid ${theme.cardBorder}`,
+                  background: theme.card,
+                  color: theme.textPrimary,
+                  fontSize: 15, fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  boxShadow: theme.cardShadow,
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                  transition: 'transform 0.12s ease',
+                }}
+                onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.975)'; }}
+                onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.975)'; }}
+                onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+              >
+                <span>{option}</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={theme.textTertiary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Slider questions */}
+        {(q.type === 'slider_height' || q.type === 'slider_weight') && (
+          <div>
+            {renderSliderContent()}
             <button
-              key={option}
-              onClick={() => handleAnswer(option)}
+              onClick={handleSliderContinue}
               style={{
-                width: '100%', padding: '15px 18px',
-                borderRadius: 16,
-                border: `1px solid ${theme.cardBorder}`,
-                background: theme.card,
-                color: theme.textPrimary,
-                fontSize: 15, fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                boxShadow: theme.cardShadow,
-                fontFamily: 'inherit',
-                textAlign: 'left',
-                transition: 'transform 0.12s ease',
+                width: '100%', marginTop: 24,
+                background: theme.textPrimary,
+                color: isDark ? '#0f1117' : '#ffffff',
+                border: 'none', borderRadius: 16,
+                padding: '16px', fontSize: 15, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit',
+                letterSpacing: '-0.01em',
               }}
-              onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.975)'; }}
-              onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-              onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.975)'; }}
-              onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
             >
-              <span>{option}</span>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={theme.textTertiary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+              Continue
             </button>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     );
   }

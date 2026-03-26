@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from './lib/supabase';
 import { ThemeContext, getTheme } from './context/ThemeContext';
 import {
   addDrink,
@@ -23,6 +25,7 @@ import BottomNav from './components/BottomNav';
 import SciencePage from './pages/SciencePage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
+import LoginPage from './pages/LoginPage';
 import { FlaskIcon, StarIcon } from './components/Icons';
 
 type Page = 'home' | 'analytics' | 'settings' | 'science';
@@ -44,6 +47,9 @@ function saveState(state: HydrationState) {
 }
 
 export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+
   const [state, setState] = useState<HydrationState>(() => {
     const s = loadState();
     return applyTimeDecay(s);
@@ -54,6 +60,18 @@ export default function App() {
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try { return localStorage.getItem('sip-ai-dark') === 'true'; } catch { return false; }
   });
+
+  // Auth init
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     try { localStorage.setItem('sip-ai-dark', String(darkMode)); } catch { /* ignore */ }
@@ -84,6 +102,21 @@ export default function App() {
     clearTimeout(feedbackTimerRef.current);
     setFeedback(msg);
     feedbackTimerRef.current = setTimeout(() => setFeedback(null), 5000);
+  }, []);
+
+  const handleLogin = useCallback((session: Session, initialProfile?: Partial<UserProfile>) => {
+    setSession(session);
+    if (initialProfile) {
+      setState(prev => {
+        const merged: UserProfile = { ...prev.userProfile, ...initialProfile };
+        return saveUserProfile(prev, merged);
+      });
+    }
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    setSession(null);
+    supabase.auth.signOut().catch(() => {});
   }, []);
 
   const handleSelectDrink = useCallback((type: DrinkType) => {
@@ -154,6 +187,24 @@ export default function App() {
 
   const ringColor = getStatusColor(state.level);
   const theme = getTheme(darkMode);
+
+  // Loading screen while checking auth
+  if (!authReady) {
+    return (
+      <ThemeContext.Provider value={darkMode}>
+        <div style={{ background: theme.bg, minHeight: '100dvh' }} />
+      </ThemeContext.Provider>
+    );
+  }
+
+  // Show login if not authenticated
+  if (!session) {
+    return (
+      <ThemeContext.Provider value={darkMode}>
+        <LoginPage onLogin={handleLogin} />
+      </ThemeContext.Provider>
+    );
+  }
 
   // Science page is full-screen with no bottom nav
   if (page === 'science') {
@@ -267,6 +318,8 @@ export default function App() {
         onSave={handleSaveProfile}
         darkMode={darkMode}
         onToggleDark={handleToggleDark}
+        session={session}
+        onLogout={handleLogout}
       />}
 
       {/* ── Home page ── */}

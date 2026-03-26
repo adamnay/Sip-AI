@@ -20,6 +20,61 @@ export interface DrinkAnalysis {
   notes: string;
 }
 
+export interface DrinkHydrationAnalysis {
+  hydrationPerMl: number;
+  caffeinePer100ml: number;
+  electrolyte: boolean;
+  label: string;
+  notes: string;
+}
+
+export async function analyzeDrinkName(
+  drinkName: string,
+  drinkType: string
+): Promise<DrinkHydrationAnalysis> {
+  const client = getClient();
+
+  const typeContext: Record<string, string> = {
+    energy_drink: 'an energy drink',
+    juice: 'a juice or fruit drink',
+    soda: 'a soda or carbonated soft drink',
+    electrolyte: 'an electrolyte supplement or sports drink',
+  };
+  const context = typeContext[drinkType] ?? 'a beverage';
+
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 200,
+    messages: [{
+      role: 'user',
+      content: `The user drank "${drinkName}", which is ${context}. Analyze its hydration effect for a hydration tracking app. Respond with ONLY valid JSON — no markdown:
+{
+  "hydrationPerMl": <float, net hydration per ml. Pure water ~0.035. Juice ~0.028–0.032. Soda ~0.012–0.018. Energy drink ~0.005–0.008. Electrolyte drink ~0.042–0.065. Negative values only if strongly diuretic.>,
+  "caffeinePer100ml": <integer mg caffeine per 100ml, or 0 if none>,
+  "electrolyte": <true if contains significant electrolytes, false otherwise>,
+  "label": "<clean display name, max 20 chars>",
+  "notes": "<one brief insight about this drink's hydration>"
+}`,
+    }],
+  });
+
+  const raw = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
+  try {
+    const cleaned = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+    const parsed = JSON.parse(cleaned) as Partial<DrinkHydrationAnalysis>;
+    return {
+      hydrationPerMl: typeof parsed.hydrationPerMl === 'number'
+        ? Math.max(-0.1, Math.min(0.1, parsed.hydrationPerMl)) : 0.02,
+      caffeinePer100ml: typeof parsed.caffeinePer100ml === 'number' ? parsed.caffeinePer100ml : 0,
+      electrolyte: parsed.electrolyte === true,
+      label: (parsed.label || drinkName).slice(0, 20),
+      notes: parsed.notes || '',
+    };
+  } catch {
+    return { hydrationPerMl: 0.02, caffeinePer100ml: 0, electrolyte: false, label: drinkName.slice(0, 20), notes: '' };
+  }
+}
+
 const VALID_TYPES: DrinkType[] = [
   'water', 'coffee', 'electrolyte', 'energy_drink',
   'juice', 'soda', 'tea', 'alcohol', 'smoothie', 'unknown',

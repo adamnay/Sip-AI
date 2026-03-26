@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import type { UserProfile } from '../engine/hydrationEngine';
 import { getDailyTargetOz } from '../engine/hydrationEngine';
 import { GearIcon, WaterIcon } from '../components/Icons';
@@ -9,6 +11,8 @@ interface Props {
   onSave: (profile: UserProfile) => void;
   darkMode: boolean;
   onToggleDark: () => void;
+  session: Session | null;
+  onLogout: () => void;
 }
 
 function InputField({
@@ -89,7 +93,7 @@ function SectionHeader({ icon, title, sub, theme }: { icon: React.ReactNode; tit
   );
 }
 
-export default function SettingsPage({ profile, onSave, darkMode, onToggleDark }: Props) {
+export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, session, onLogout }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
   const [form, setForm] = useState({
@@ -102,6 +106,9 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark }
   });
 
   const [saved, setSaved] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const set = (key: string) => (v: string) => setForm(f => ({ ...f, [key]: v }));
 
@@ -119,6 +126,16 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark }
     setTimeout(() => setSaved(false), 2500);
   };
 
+  const handlePasswordReset = async () => {
+    const userEmail = session?.user?.email || form.email.trim();
+    if (!userEmail) return;
+    setResetLoading(true);
+    await supabase.auth.resetPasswordForEmail(userEmail);
+    setResetLoading(false);
+    setResetSent(true);
+    setTimeout(() => setResetSent(false), 4000);
+  };
+
   const previewProfile: UserProfile = {
     name: form.name,
     email: form.email,
@@ -128,6 +145,9 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark }
     weightLbs: form.weightLbs ? parseFloat(form.weightLbs) : null,
   };
   const dailyOz = getDailyTargetOz(previewProfile);
+
+  const userName = session?.user?.user_metadata?.name || form.name || 'User';
+  const userEmail = session?.user?.email || form.email || '';
 
   return (
     <div style={{
@@ -149,6 +169,57 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark }
       </div>
 
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+        {/* Account */}
+        {session && (
+          <div style={{
+            background: theme.card,
+            borderRadius: 20,
+            padding: '16px',
+            boxShadow: theme.cardShadow,
+            border: `1px solid ${theme.cardBorder}`,
+          }}>
+            <SectionHeader
+              icon={
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={theme.textSecondary} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              }
+              title="Account"
+              sub="Your profile and security"
+              theme={theme}
+            />
+
+            {/* Name + email display */}
+            <div style={{ marginBottom: 12 }}>
+              <p style={{ fontSize: 16, fontWeight: 700, color: theme.textPrimary, margin: '0 0 2px' }}>{userName}</p>
+              <p style={{ fontSize: 13, color: theme.textSecondary, margin: 0 }}>{userEmail}</p>
+            </div>
+
+            {/* Password reset */}
+            <button
+              onClick={handlePasswordReset}
+              disabled={resetLoading || resetSent}
+              style={{
+                width: '100%',
+                background: resetSent ? 'rgba(22,163,74,0.08)' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                color: resetSent ? '#16a34a' : theme.textSecondary,
+                border: resetSent ? '1px solid rgba(22,163,74,0.2)' : `1px solid ${theme.cardBorder}`,
+                borderRadius: 12,
+                padding: '11px 14px',
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: (resetLoading || resetSent) ? 'default' : 'pointer',
+                fontFamily: 'inherit',
+                textAlign: 'left' as const,
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {resetSent ? 'Reset email sent — check your inbox' : resetLoading ? 'Sending...' : 'Change Password'}
+            </button>
+          </div>
+        )}
 
         {/* Appearance */}
         <div style={{
@@ -291,7 +362,90 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark }
           {saved ? 'Saved!' : 'Save Settings'}
         </button>
 
+        {/* Sign out */}
+        {session && (
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            style={{
+              width: '100%',
+              background: 'transparent',
+              color: '#dc2626',
+              border: '1px solid rgba(220,38,38,0.25)',
+              borderRadius: 16,
+              padding: '15px 20px',
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: 'pointer',
+              letterSpacing: '-0.01em',
+              fontFamily: 'inherit',
+            }}
+          >
+            Sign Out
+          </button>
+        )}
       </div>
+
+      {/* Logout confirm modal */}
+      {showLogoutConfirm && (
+        <>
+          <div
+            onClick={() => setShowLogoutConfirm(false)}
+            style={{
+              position: 'fixed', inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              zIndex: 100,
+              animation: 'fadeIn 0.15s ease forwards',
+            }}
+          />
+          <div style={{
+            position: 'fixed',
+            bottom: 0, left: 0, right: 0,
+            margin: '0 auto',
+            maxWidth: 420,
+            background: theme.card,
+            borderRadius: '24px 24px 0 0',
+            zIndex: 110,
+            padding: '24px 20px',
+            paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+            boxShadow: '0 -4px 32px rgba(0,0,0,0.2)',
+            animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1) forwards',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: theme.divider }} />
+            </div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: theme.textPrimary, margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+              Sign out?
+            </h3>
+            <p style={{ fontSize: 14, color: theme.textSecondary, margin: '0 0 24px', lineHeight: 1.5 }}>
+              You'll need to sign back in to access your account.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  flex: 1, padding: '14px', borderRadius: 14,
+                  background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                  border: 'none', fontSize: 15, fontWeight: 600,
+                  color: theme.textPrimary, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onLogout}
+                style={{
+                  flex: 1, padding: '14px', borderRadius: 14,
+                  background: '#dc2626', border: 'none',
+                  fontSize: 15, fontWeight: 700,
+                  color: '#ffffff', cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
