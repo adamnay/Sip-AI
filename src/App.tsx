@@ -96,6 +96,22 @@ export default function App() {
     return () => clearInterval(decayIntervalRef.current);
   }, []);
 
+  // On iOS PWA the setInterval is suspended when backgrounded.
+  // Apply decay immediately whenever the app becomes visible again.
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        setState((prev) => {
+          const updated = applyTimeDecay(prev);
+          saveState(updated);
+          return updated;
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
   useEffect(() => {
     saveState(state);
   }, [state]);
