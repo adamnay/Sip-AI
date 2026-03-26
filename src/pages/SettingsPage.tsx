@@ -171,7 +171,7 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
     heightIn: form.heightIn ? parseInt(form.heightIn, 10) : null,
     weightLbs: form.weightLbs ? parseFloat(form.weightLbs) : null,
   };
-  const dailyOz = getDailyTargetOz(previewProfile);
+  const dailyOz = customDailyTargetOz ?? getDailyTargetOz(previewProfile);
 
   const userName = session?.user?.user_metadata?.name || form.name || 'User';
   const userEmail = session?.user?.email || form.email || '';
@@ -421,7 +421,7 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
                 Your personalized daily target: <strong>{dailyOz} oz</strong>
               </p>
               <p style={{ fontSize: 11, color: theme.textSecondary, margin: '2px 0 0' }}>
-                Based on your weight — hydration decay will adjust accordingly
+                {customDailyTargetOz ? 'Based on your setup answers' : 'Based on your weight'} — hydration decay will adjust accordingly
               </p>
             </div>
           )}
