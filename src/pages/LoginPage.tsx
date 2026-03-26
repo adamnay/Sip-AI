@@ -9,7 +9,7 @@ interface Props {
   onLogin: (session: Session, profile?: Partial<UserProfile>) => void;
 }
 
-type QuestionType = 'choice' | 'slider_height' | 'slider_weight';
+type QuestionType = 'choice' | 'slider_age' | 'slider_height' | 'slider_weight';
 
 interface Question {
   id: string;
@@ -60,6 +60,14 @@ const QUESTIONS: Question[] = [
     options: ['Never', 'Rarely', 'Weekends', 'A few times/week', 'Daily'],
   },
   {
+    id: 'ageTotalYears', type: 'slider_age',
+    question: 'How old are you?',
+    sub: 'Age affects how your body processes and retains water.',
+    icon: 'age',
+    options: [],
+    sliderMin: 13, sliderMax: 90, sliderDefault: 28,
+  },
+  {
     id: 'heightTotalIn', type: 'slider_height',
     question: 'How tall are you?',
     sub: 'Used to personalize your daily hydration target.',
@@ -99,6 +107,12 @@ function QuestionIcon({ icon, color }: { icon: string; color: string }) {
       <line x1="9" y1="20" x2="15" y2="20" />
     </svg>
   );
+  if (icon === 'age') return (
+    <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+    </svg>
+  );
   if (icon === 'height') return (
     <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
       <line x1="12" y1="3" x2="12" y2="21" />
@@ -135,7 +149,7 @@ export default function LoginPage({ onLogin }: Props) {
   // Reset slider to default when landing on a slider question
   useEffect(() => {
     const q = QUESTIONS[qIndex];
-    if (q.type === 'slider_height' || q.type === 'slider_weight') {
+    if (q.type === 'slider_age' || q.type === 'slider_height' || q.type === 'slider_weight') {
       setSliderValue(q.sliderDefault!);
     }
   }, [qIndex]);
@@ -199,14 +213,13 @@ export default function LoginPage({ onLogin }: Props) {
         name: name.trim(),
         email: email.trim(),
       };
+      if (updated.ageTotalYears) profile.age = parseInt(updated.ageTotalYears);
       const totalIn = parseInt(updated.heightTotalIn || '0');
       if (totalIn) {
         profile.heightFt = Math.floor(totalIn / 12);
         profile.heightIn = totalIn % 12;
       }
-      if (updated.weightLbs) {
-        profile.weightLbs = parseFloat(updated.weightLbs);
-      }
+      if (updated.weightLbs) profile.weightLbs = parseFloat(updated.weightLbs);
       await supabase.auth.updateUser({ data: { onboarding: updated } });
       if (pendingSession) onLogin(pendingSession, profile);
     }
@@ -229,6 +242,32 @@ export default function LoginPage({ onLogin }: Props) {
     const iconColor = isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.6)';
 
     const renderSliderContent = () => {
+      if (q.type === 'slider_age') {
+        return (
+          <>
+            <div style={{ textAlign: 'center', marginBottom: 32 }}>
+              <span style={{ fontSize: 56, fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.04em', lineHeight: 1 }}>
+                {Math.round(sliderValue)}
+              </span>
+              <span style={{ fontSize: 22, fontWeight: 600, color: theme.textSecondary, marginLeft: 8 }}>yrs</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <input
+                type="range"
+                min={q.sliderMin}
+                max={q.sliderMax}
+                value={sliderValue}
+                onChange={e => setSliderValue(Number(e.target.value))}
+                style={{ background: trackFill(sliderValue, q.sliderMin!, q.sliderMax!) }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+                <span style={{ fontSize: 11, color: theme.textTertiary }}>{q.sliderMin}</span>
+                <span style={{ fontSize: 11, color: theme.textTertiary }}>{q.sliderMax}</span>
+              </div>
+            </div>
+          </>
+        );
+      }
       if (q.type === 'slider_height') {
         const totalIn = Math.round(sliderValue);
         const ft = Math.floor(totalIn / 12);
@@ -379,7 +418,7 @@ export default function LoginPage({ onLogin }: Props) {
         )}
 
         {/* Slider questions */}
-        {(q.type === 'slider_height' || q.type === 'slider_weight') && (
+        {(q.type === 'slider_age' || q.type === 'slider_height' || q.type === 'slider_weight') && (
           <div>
             {renderSliderContent()}
             <button

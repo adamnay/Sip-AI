@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { UserProfile } from '../engine/hydrationEngine';
@@ -109,6 +109,18 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
     heightIn: profile.heightIn !== null ? String(profile.heightIn) : '',
     weightLbs: profile.weightLbs !== null ? String(profile.weightLbs) : '',
   });
+
+  // Sync form when profile updates externally (e.g. after setup questions)
+  useEffect(() => {
+    setForm({
+      name: profile.name,
+      email: profile.email,
+      age: profile.age !== null ? String(profile.age) : '',
+      heightFt: profile.heightFt !== null ? String(profile.heightFt) : '',
+      heightIn: profile.heightIn !== null ? String(profile.heightIn) : '',
+      weightLbs: profile.weightLbs !== null ? String(profile.weightLbs) : '',
+    });
+  }, [profile.age, profile.heightFt, profile.heightIn, profile.weightLbs]);
 
   const [saved, setSaved] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
