@@ -177,7 +177,7 @@ export default function ActivityInput({ onActivity }: Props) {
             value={state.text}
             onChange={e => setState(prev => ({ ...prev, text: e.target.value }))}
             onKeyDown={handleKeyDown}
-            placeholder="Log an activity — AI will calculate fluid loss"
+            placeholder="Log an activity — AI calculates fluid loss"
             disabled={state.status === 'loading'}
             style={{
               color: theme.textPrimary,
