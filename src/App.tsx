@@ -38,6 +38,22 @@ type Page = 'home' | 'analytics' | 'settings' | 'science';
 
 const STORAGE_KEY = 'sip-ai-state-v2';
 
+function getYesterdayDebt(state: HydrationState): { closingLevel: number; debtOz: number } | null {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth() + 1).padStart(2, '0');
+  const dd   = String(d.getDate()).padStart(2, '0');
+  const yesterday = `${yyyy}-${mm}-${dd}`;
+  const record = (state.dailyHistory ?? []).find(r => r.date === yesterday);
+  if (!record) return null;
+  const deficit = 80 - record.closingLevel;
+  if (deficit < 10) return null; // only show if meaningfully below target
+  const debtOz = Math.min(20, Math.round(deficit * 0.35));
+  if (debtOz < 3) return null;
+  return { closingLevel: record.closingLevel, debtOz };
+}
+
 function loadState(): HydrationState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -272,6 +288,7 @@ export default function App() {
 
   const ringColor = getStatusColor(state.level);
   const theme = getTheme(darkMode);
+  const yesterdayDebt = getYesterdayDebt(state);
 
   // Loading screen while checking auth
   if (!authReady) {
@@ -423,6 +440,31 @@ export default function App() {
               hangoverMode={state.hangoverMode}
             />
           </div>
+
+          {/* Hydration debt badge */}
+          {yesterdayDebt && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 12px', borderRadius: 20,
+                background: darkMode ? 'rgba(251,191,36,0.08)' : 'rgba(251,191,36,0.1)',
+                border: '1px solid rgba(217,119,6,0.2)',
+              }}>
+                <svg width={11} height={11} viewBox="0 0 24 24" fill="none"
+                  stroke="#d97706" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"
+                >
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                  <polyline points="17 6 23 6 23 12" />
+                </svg>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#d97706' }}>
+                  +{yesterdayDebt.debtOz} oz
+                </span>
+                <span style={{ fontSize: 12, color: darkMode ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)' }}>
+                  recovery · finished yesterday at {yesterdayDebt.closingLevel}%
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Gradient divider */}
           <div
