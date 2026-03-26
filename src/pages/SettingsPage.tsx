@@ -107,8 +107,12 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
 
   const [saved, setSaved] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
-  const [resetLoading, setResetLoading] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSaved, setPasswordSaved] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   const set = (key: string) => (v: string) => setForm(f => ({ ...f, [key]: v }));
 
@@ -126,14 +130,19 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
     setTimeout(() => setSaved(false), 2500);
   };
 
-  const handlePasswordReset = async () => {
-    const userEmail = session?.user?.email || form.email.trim();
-    if (!userEmail) return;
-    setResetLoading(true);
-    await supabase.auth.resetPasswordForEmail(userEmail);
-    setResetLoading(false);
-    setResetSent(true);
-    setTimeout(() => setResetSent(false), 4000);
+  const handlePasswordChange = async () => {
+    setPasswordError('');
+    if (newPassword.length < 6) { setPasswordError('Password must be at least 6 characters'); return; }
+    if (newPassword !== confirmNewPassword) { setPasswordError('Passwords do not match'); return; }
+    setPasswordLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setPasswordLoading(false);
+    if (error) { setPasswordError(error.message); return; }
+    setPasswordSaved(true);
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setShowPasswordForm(false);
+    setTimeout(() => setPasswordSaved(false), 3000);
   };
 
   const previewProfile: UserProfile = {
@@ -197,27 +206,85 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
               <p style={{ fontSize: 13, color: theme.textSecondary, margin: 0 }}>{userEmail}</p>
             </div>
 
-            {/* Password reset */}
-            <button
-              onClick={handlePasswordReset}
-              disabled={resetLoading || resetSent}
-              style={{
-                width: '100%',
-                background: resetSent ? 'rgba(22,163,74,0.08)' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                color: resetSent ? '#16a34a' : theme.textSecondary,
-                border: resetSent ? '1px solid rgba(22,163,74,0.2)' : `1px solid ${theme.cardBorder}`,
-                borderRadius: 12,
-                padding: '11px 14px',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: (resetLoading || resetSent) ? 'default' : 'pointer',
-                fontFamily: 'inherit',
-                textAlign: 'left' as const,
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {resetSent ? 'Reset email sent — check your inbox' : resetLoading ? 'Sending...' : 'Change Password'}
-            </button>
+            {/* Change password */}
+            {!showPasswordForm ? (
+              <button
+                onClick={() => { setShowPasswordForm(true); setPasswordError(''); }}
+                style={{
+                  width: '100%',
+                  background: passwordSaved ? 'rgba(22,163,74,0.08)' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                  color: passwordSaved ? '#16a34a' : theme.textSecondary,
+                  border: passwordSaved ? '1px solid rgba(22,163,74,0.2)' : `1px solid ${theme.cardBorder}`,
+                  borderRadius: 12,
+                  padding: '11px 14px',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  textAlign: 'left' as const,
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {passwordSaved ? 'Password updated' : 'Change Password'}
+              </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input
+                  type="password"
+                  placeholder="New password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                  style={{
+                    width: '100%', border: `1px solid ${theme.cardBorder}`, borderRadius: 12,
+                    padding: '12px 14px', fontSize: 15, color: theme.textPrimary,
+                    background: theme.inputBg, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+                  }}
+                />
+                <input
+                  type="password"
+                  placeholder="Confirm new password"
+                  value={confirmNewPassword}
+                  onChange={e => setConfirmNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                  onKeyDown={e => e.key === 'Enter' && handlePasswordChange()}
+                  style={{
+                    width: '100%', border: `1px solid ${theme.cardBorder}`, borderRadius: 12,
+                    padding: '12px 14px', fontSize: 15, color: theme.textPrimary,
+                    background: theme.inputBg, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+                  }}
+                />
+                {passwordError && (
+                  <p style={{ fontSize: 12, color: '#dc2626', margin: 0, fontWeight: 500 }}>{passwordError}</p>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => { setShowPasswordForm(false); setPasswordError(''); setNewPassword(''); setConfirmNewPassword(''); }}
+                    style={{
+                      flex: 1, padding: '11px', borderRadius: 12,
+                      background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                      border: `1px solid ${theme.cardBorder}`, fontSize: 14, fontWeight: 600,
+                      color: theme.textSecondary, cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handlePasswordChange}
+                    disabled={passwordLoading}
+                    style={{
+                      flex: 1, padding: '11px', borderRadius: 12,
+                      background: theme.textPrimary, border: 'none', fontSize: 14, fontWeight: 700,
+                      color: isDark ? '#0f1117' : '#ffffff',
+                      cursor: passwordLoading ? 'default' : 'pointer',
+                      opacity: passwordLoading ? 0.7 : 1, fontFamily: 'inherit',
+                    }}
+                  >
+                    {passwordLoading ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
