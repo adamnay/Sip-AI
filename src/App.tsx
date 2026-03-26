@@ -12,6 +12,7 @@ import {
   removeActivity,
   addFavorite,
   removeFavorite,
+  applyUrineCalibration,
   activateHangoverMode,
   deactivateHangoverMode,
   loadAndMigrateState,
@@ -25,6 +26,8 @@ import FeedbackCard from './components/FeedbackCard';
 import DrinkInput from './components/DrinkInput';
 import DrinkLog from './components/DrinkLog';
 import FavoritesRow from './components/FavoritesRow';
+import UrineColorSheet from './components/UrineColorSheet';
+import type { UrineColorResult } from './components/UrineColorSheet';
 import DrinkFlowModal from './components/DrinkFlowModal';
 import ActivityInput from './components/ActivityInput';
 import BottomNav from './components/BottomNav';
@@ -79,6 +82,7 @@ export default function App() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [page, setPage] = useState<Page>('home');
   const [selectedDrinkType, setSelectedDrinkType] = useState<DrinkType | null>(null);
+  const [showUrineSheet, setShowUrineSheet] = useState(false);
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try { return localStorage.getItem('sip-ai-dark') === 'true'; } catch { return false; }
   });
@@ -248,6 +252,16 @@ export default function App() {
       return updated;
     });
   }, []);
+
+  const handleUrineResult = useCallback((result: UrineColorResult) => {
+    setShowUrineSheet(false);
+    setState((prev) => {
+      const updated = applyUrineCalibration(prev, result.adjustment);
+      saveState(updated);
+      return updated;
+    });
+    showFeedback(result.feedback);
+  }, [showFeedback]);
 
   const handleLogFavorite = useCallback((fav: import('./engine/hydrationEngine').FavoriteDrink) => {
     setState((prev) => {
@@ -441,6 +455,30 @@ export default function App() {
             />
           </div>
 
+          {/* Urine color check-in trigger */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+            <button
+              onClick={() => setShowUrineSheet(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 13px', borderRadius: 20,
+                background: 'transparent',
+                border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.09)'}`,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              {/* Mini color strip */}
+              <div style={{ display: 'flex', gap: 2 }}>
+                {['#fef9c3', '#fde047', '#eab308', '#d97706', '#b45309'].map(c => (
+                  <div key={c} style={{ width: 8, height: 8, borderRadius: 2, background: c }} />
+                ))}
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 600, color: darkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.38)', letterSpacing: '-0.01em' }}>
+                Color check
+              </span>
+            </button>
+          </div>
+
           {/* Hydration debt badge */}
           {yesterdayDebt && (
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
@@ -512,6 +550,14 @@ export default function App() {
 
       {/* Bottom nav spacer */}
       {showBottomNav && <div style={{ height: 74 }} />}
+
+      {/* Urine color sheet */}
+      {showUrineSheet && (
+        <UrineColorSheet
+          onResult={handleUrineResult}
+          onClose={() => setShowUrineSheet(false)}
+        />
+      )}
 
       {/* Drink flow modal — above bottom nav */}
       <DrinkFlowModal

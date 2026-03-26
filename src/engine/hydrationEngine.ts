@@ -531,6 +531,14 @@ export function removeActivity(
   };
 }
 
+export function applyUrineCalibration(
+  state: HydrationState,
+  adjustment: number
+): HydrationState {
+  const newLevel = Math.max(0, Math.min(100, state.level + adjustment));
+  return { ...state, level: newLevel, lastUpdate: Date.now() };
+}
+
 export function addFavorite(
   state: HydrationState,
   entry: DrinkEntry
