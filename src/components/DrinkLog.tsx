@@ -131,7 +131,10 @@ function LogItem({
       }}
     >
       <span style={{ flexShrink: 0 }}>
-        {getDrinkIcon(entry.type, 18, theme.textSecondary)}
+        {entry.scanThumbnail
+          ? <img src={entry.scanThumbnail} alt="" style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'cover', display: 'block' }} />
+          : getDrinkIcon(entry.type, 18, theme.textSecondary)
+        }
       </span>
 
       <div className="flex-1 min-w-0">

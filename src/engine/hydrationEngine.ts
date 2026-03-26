@@ -20,6 +20,7 @@ export interface DrinkEntry {
   label: string;
   emoji: string;
   feedback: string;
+  scanThumbnail?: string; // small base64 JPEG from image scan
 }
 
 export interface UserProfile {
@@ -74,6 +75,7 @@ export interface DrinkOverrides {
   caffeinePer100ml?: number;
   electrolyte?: boolean;
   label?: string;
+  scanThumbnail?: string;
   alcoholDecayBoost?: boolean;
 }
 
@@ -365,6 +367,7 @@ export function addDrink(
     label: effectiveLabel,
     emoji: profile.emoji,
     feedback,
+    ...(overrides?.scanThumbnail ? { scanThumbnail: overrides.scanThumbnail } : {}),
   };
 
   // Determine if alcohol decay should activate

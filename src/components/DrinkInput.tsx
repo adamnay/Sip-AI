@@ -16,7 +16,7 @@ import {
 
 interface Props {
   onSelectDrink: (type: DrinkType) => void;
-  onScanConfirm: (type: DrinkType, volumeMl: number, displayName: string) => void;
+  onScanConfirm: (type: DrinkType, volumeMl: number, displayName: string, thumbnail?: string) => void;
   hangoverMode?: boolean;
 }
 
@@ -64,6 +64,7 @@ interface AnalyzingState {
   volume?: number;
   notes?: string;
   error?: string;
+  thumbnail?: string; // small base64 JPEG for the log
 }
 
 export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode = false }: Props) {
@@ -78,7 +79,10 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode 
     e.target.value = '';
     setAnalyzing({ status: 'analyzing' });
     try {
-      const base64 = await fileToBase64(file);
+      const [base64, thumbnail] = await Promise.all([
+        fileToBase64(file),
+        makeThumbnail(file),
+      ]);
       const mediaType = file.type as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
       const result = await analyzeDrinkPhoto(base64, mediaType);
       setAnalyzing({
@@ -87,6 +91,7 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode 
         type: result.drink_type,
         volume: result.estimated_volume_ml,
         notes: result.notes,
+        thumbnail,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to analyze';
@@ -98,11 +103,9 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode 
   const confirmPhoto = () => {
     if (!analyzing.type || !analyzing.volume) return;
     if (analyzing.type === 'alcohol') {
-      // Alcohol needs modal — type (beer/wine/liquor) and count matter too much
       onSelectDrink(analyzing.type);
     } else {
-      // Type and volume are known — log directly, no modal needed
-      onScanConfirm(analyzing.type, analyzing.volume, analyzing.displayName ?? '');
+      onScanConfirm(analyzing.type, analyzing.volume, analyzing.displayName ?? '', analyzing.thumbnail);
     }
     setAnalyzing({ status: 'idle' });
   };
@@ -117,7 +120,10 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode 
         >
           <div className="flex items-center gap-3">
             <div style={{ flexShrink: 0 }}>
-              {analyzing.type ? getDrinkIcon(analyzing.type, 24, '#111827') : <WaterIcon size={24} color="#111827" />}
+              {analyzing.thumbnail
+                ? <img src={analyzing.thumbnail} alt="" style={{ width: 40, height: 40, borderRadius: 10, objectFit: 'cover', display: 'block' }} />
+                : analyzing.type ? getDrinkIcon(analyzing.type, 24, '#111827') : <WaterIcon size={24} color="#111827" />
+              }
             </div>
             <div className="flex-1">
               <p className="font-semibold text-sm" style={{ color: theme.textPrimary }}>{analyzing.displayName}</p>
@@ -356,5 +362,29 @@ function fileToBase64(file: File): Promise<string> {
     };
     reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+/** Resize image to a 56×56 square thumbnail and return as a data URL. ~2-3 KB. */
+function makeThumbnail(file: File, size = 56): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(url); resolve(''); return; }
+      // Centre-crop to square
+      const min = Math.min(img.width, img.height);
+      const sx = (img.width - min) / 2;
+      const sy = (img.height - min) / 2;
+      ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(''); };
+    img.src = url;
   });
 }

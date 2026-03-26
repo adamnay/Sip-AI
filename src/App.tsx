@@ -167,10 +167,13 @@ export default function App() {
     setSelectedDrinkType(type);
   }, []);
 
-  const handleScanConfirm = useCallback((type: DrinkType, volumeMl: number, displayName: string) => {
+  const handleScanConfirm = useCallback((type: DrinkType, volumeMl: number, displayName: string, thumbnail?: string) => {
     setState((prev) => {
       const decayed = applyTimeDecay(prev);
-      const overrides = displayName ? { label: displayName } : {};
+      const overrides = {
+        ...(displayName ? { label: displayName } : {}),
+        ...(thumbnail ? { scanThumbnail: thumbnail } : {}),
+      };
       const { newState, entry } = addDrink(decayed, type, volumeMl, overrides);
       showFeedback(entry.feedback);
       return newState;
