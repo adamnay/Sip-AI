@@ -20,6 +20,8 @@ interface Props {
   activityLog?: ActivityEntry[];
   onRemove: (id: string) => void;
   onRemoveActivity: (id: string) => void;
+  onFavorite: (entry: DrinkEntry) => void;
+  favoriteIds: Set<string>;
 }
 
 export function getDrinkIcon(type: DrinkType, size: number = 18, color: string = 'rgba(0,0,0,0.45)') {
@@ -50,7 +52,7 @@ type CombinedEntry =
   | { kind: 'drink'; data: DrinkEntry }
   | { kind: 'activity'; data: ActivityEntry };
 
-export default function DrinkLog({ log, activityLog = [], onRemove, onRemoveActivity }: Props) {
+export default function DrinkLog({ log, activityLog = [], onRemove, onRemoveActivity, onFavorite, favoriteIds }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
   const [expanded, setExpanded] = useState(false);
@@ -82,7 +84,7 @@ export default function DrinkLog({ log, activityLog = [], onRemove, onRemoveActi
       <div className="flex flex-col gap-1.5">
         {visible.map((item, i) =>
           item.kind === 'drink'
-            ? <LogItem key={item.data.id} entry={item.data} index={i} onRemove={onRemove} theme={theme} />
+            ? <LogItem key={item.data.id} entry={item.data} index={i} onRemove={onRemove} onFavorite={onFavorite} isFavorited={favoriteIds.has(item.data.id)} theme={theme} />
             : <ActivityItem key={item.data.id} entry={item.data} index={i} onRemove={onRemoveActivity} theme={theme} />
         )}
       </div>
@@ -101,9 +103,11 @@ export default function DrinkLog({ log, activityLog = [], onRemove, onRemoveActi
 }
 
 function LogItem({
-  entry, index, onRemove, theme,
+  entry, index, onRemove, onFavorite, isFavorited, theme,
 }: {
-  entry: DrinkEntry; index: number; onRemove: (id: string) => void; theme: ReturnType<typeof getTheme>;
+  entry: DrinkEntry; index: number; onRemove: (id: string) => void;
+  onFavorite: (entry: DrinkEntry) => void; isFavorited: boolean;
+  theme: ReturnType<typeof getTheme>;
 }) {
   const [confirming, setConfirming] = useState(false);
 
@@ -150,6 +154,30 @@ function LogItem({
       <span className="text-sm font-semibold tabular-nums" style={{ color: deltaColor, flexShrink: 0 }}>
         {deltaText}
       </span>
+
+      {/* Bookmark / favorite button */}
+      <button
+        onClick={() => onFavorite(entry)}
+        style={{
+          flexShrink: 0,
+          width: 28, height: 28,
+          borderRadius: 8,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: isFavorited ? 'rgba(234,179,8,0.1)' : theme.divider,
+          border: `1px solid ${isFavorited ? 'rgba(234,179,8,0.35)' : theme.cardBorder}`,
+          transition: 'all 0.15s ease',
+          cursor: isFavorited ? 'default' : 'pointer',
+        }}
+        title={isFavorited ? 'Saved to Quick Log' : 'Save to Quick Log'}
+      >
+        <svg width={12} height={12} viewBox="0 0 24 24"
+          fill={isFavorited ? '#ca8a04' : 'none'}
+          stroke={isFavorited ? '#ca8a04' : theme.textTertiary}
+          strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+        >
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+        </svg>
+      </button>
 
       {/* Delete button — tap once to arm, tap again to confirm */}
       <button

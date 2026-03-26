@@ -68,6 +68,7 @@ export interface HydrationState {
   onboardingAnswers: Record<string, string> | null;
   customDailyTargetOz: number | null;
   profileSummary: string;
+  favorites: FavoriteDrink[];
 }
 
 export interface DrinkOverrides {
@@ -77,6 +78,15 @@ export interface DrinkOverrides {
   label?: string;
   scanThumbnail?: string;
   alcoholDecayBoost?: boolean;
+}
+
+export interface FavoriteDrink {
+  id: string;
+  label: string;
+  type: DrinkType;
+  volume_ml: number;
+  overrides: DrinkOverrides;
+  scanThumbnail?: string;
 }
 
 interface DrinkProfile {
@@ -148,6 +158,7 @@ export function createInitialState(): HydrationState {
     onboardingAnswers: null,
     customDailyTargetOz: null,
     profileSummary: '',
+    favorites: [],
   };
 }
 
@@ -190,6 +201,7 @@ function migrateState(state: Partial<HydrationState>): HydrationState {
     onboardingAnswers: state.onboardingAnswers ?? null,
     customDailyTargetOz: state.customDailyTargetOz ?? null,
     profileSummary: state.profileSummary ?? '',
+    favorites: state.favorites ?? [],
   };
 }
 
@@ -517,6 +529,30 @@ export function removeActivity(
     level: newLevel,
     activityLog: (state.activityLog ?? []).filter((e) => e.id !== entryId),
   };
+}
+
+export function addFavorite(
+  state: HydrationState,
+  entry: DrinkEntry
+): HydrationState {
+  const already = (state.favorites ?? []).some(f => f.id === entry.id);
+  if (already) return state;
+  const fav: FavoriteDrink = {
+    id: entry.id,
+    label: entry.label,
+    type: entry.type,
+    volume_ml: entry.volume_ml,
+    overrides: {},
+    scanThumbnail: entry.scanThumbnail,
+  };
+  return { ...state, favorites: [fav, ...(state.favorites ?? [])].slice(0, 12) };
+}
+
+export function removeFavorite(
+  state: HydrationState,
+  favId: string
+): HydrationState {
+  return { ...state, favorites: (state.favorites ?? []).filter(f => f.id !== favId) };
 }
 
 export function getWasteInsight(drinkLog: DrinkEntry[]): string | null {

@@ -10,18 +10,21 @@ import {
   getStatusColor,
   removeDrink,
   removeActivity,
+  addFavorite,
+  removeFavorite,
   activateHangoverMode,
   deactivateHangoverMode,
   loadAndMigrateState,
   saveUserProfile,
   computeDailyTargetFromAnswers,
 } from './engine/hydrationEngine';
-import type { DrinkType, HydrationState, DrinkOverrides, ActivityResult, UserProfile } from './engine/hydrationEngine';
+import type { DrinkType, HydrationState, DrinkOverrides, ActivityResult, UserProfile, DrinkEntry } from './engine/hydrationEngine';
 import { generateProfileSummary } from './api/profileAnalyzer';
 import HydrationRing from './components/HydrationRing';
 import FeedbackCard from './components/FeedbackCard';
 import DrinkInput from './components/DrinkInput';
 import DrinkLog from './components/DrinkLog';
+import FavoritesRow from './components/FavoritesRow';
 import DrinkFlowModal from './components/DrinkFlowModal';
 import ActivityInput from './components/ActivityInput';
 import BottomNav from './components/BottomNav';
@@ -213,6 +216,32 @@ export default function App() {
       return updated;
     });
   }, []);
+
+  const handleFavorite = useCallback((entry: DrinkEntry) => {
+    setState((prev) => {
+      const updated = addFavorite(prev, entry);
+      saveState(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleRemoveFavorite = useCallback((id: string) => {
+    setState((prev) => {
+      const updated = removeFavorite(prev, id);
+      saveState(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleLogFavorite = useCallback((fav: import('./engine/hydrationEngine').FavoriteDrink) => {
+    setState((prev) => {
+      const decayed = applyTimeDecay(prev);
+      const overrides = { ...fav.overrides, label: fav.label, ...(fav.scanThumbnail ? { scanThumbnail: fav.scanThumbnail } : {}) };
+      const { newState, entry } = addDrink(decayed, fav.type, fav.volume_ml, overrides);
+      showFeedback(entry.feedback);
+      return newState;
+    });
+  }, [showFeedback]);
 
   const handleActivity = useCallback((result: ActivityResult) => {
     setState((prev) => {
@@ -409,6 +438,13 @@ export default function App() {
 
           <div className="flex-1" style={{ minHeight: 16 }} />
 
+          {/* Favorites quick-log */}
+          <FavoritesRow
+            favorites={state.favorites}
+            onLog={handleLogFavorite}
+            onRemove={handleRemoveFavorite}
+          />
+
           {/* Drink input */}
           <DrinkInput onSelectDrink={handleSelectDrink} onScanConfirm={handleScanConfirm} hangoverMode={state.hangoverMode} />
 
@@ -421,7 +457,14 @@ export default function App() {
           <div className="mx-6 my-3" style={{ height: 1, background: theme.divider }} />
 
           {/* Log */}
-          <DrinkLog log={state.drinkLog} activityLog={state.activityLog} onRemove={handleRemove} onRemoveActivity={handleRemoveActivity} />
+          <DrinkLog
+            log={state.drinkLog}
+            activityLog={state.activityLog}
+            onRemove={handleRemove}
+            onRemoveActivity={handleRemoveActivity}
+            onFavorite={handleFavorite}
+            favoriteIds={new Set((state.favorites ?? []).map(f => f.id))}
+          />
         </>
       )}
 
