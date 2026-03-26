@@ -19,6 +19,7 @@ interface Props {
   log: DrinkEntry[];
   activityLog?: ActivityEntry[];
   onRemove: (id: string) => void;
+  onRemoveActivity: (id: string) => void;
 }
 
 export function getDrinkIcon(type: DrinkType, size: number = 18, color: string = 'rgba(0,0,0,0.45)') {
@@ -49,7 +50,7 @@ type CombinedEntry =
   | { kind: 'drink'; data: DrinkEntry }
   | { kind: 'activity'; data: ActivityEntry };
 
-export default function DrinkLog({ log, activityLog = [], onRemove }: Props) {
+export default function DrinkLog({ log, activityLog = [], onRemove, onRemoveActivity }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
   const [expanded, setExpanded] = useState(false);
@@ -82,7 +83,7 @@ export default function DrinkLog({ log, activityLog = [], onRemove }: Props) {
         {visible.map((item, i) =>
           item.kind === 'drink'
             ? <LogItem key={item.data.id} entry={item.data} index={i} onRemove={onRemove} theme={theme} />
-            : <ActivityItem key={item.data.id} entry={item.data} index={i} theme={theme} />
+            : <ActivityItem key={item.data.id} entry={item.data} index={i} onRemove={onRemoveActivity} theme={theme} />
         )}
       </div>
 
@@ -175,17 +176,31 @@ function LogItem({
 }
 
 function ActivityItem({
-  entry, index, theme,
+  entry, index, onRemove, theme,
 }: {
-  entry: ActivityEntry; index: number; theme: ReturnType<typeof getTheme>;
+  entry: ActivityEntry; index: number; onRemove: (id: string) => void; theme: ReturnType<typeof getTheme>;
 }) {
+  const [confirming, setConfirming] = useState(false);
   const deltaColor = '#dc2626';
   const deltaText = `${entry.hydrationDelta.toFixed(0)}%`;
+
+  const handleDelete = () => {
+    if (confirming) {
+      onRemove(entry.id);
+    } else {
+      setConfirming(true);
+      setTimeout(() => setConfirming(false), 3000);
+    }
+  };
 
   return (
     <div
       className="glass rounded-xl px-3 py-2.5 flex items-center gap-3 log-item"
-      style={{ animationDelay: `${index * 0.04}s` }}
+      style={{
+        animationDelay: `${index * 0.04}s`,
+        borderColor: confirming ? 'rgba(239,68,68,0.2)' : theme.cardBorder,
+        transition: 'border-color 0.2s ease',
+      }}
     >
       <span style={{ flexShrink: 0 }}>
         <ActivityIcon size={18} color={theme.textSecondary} />
@@ -201,6 +216,25 @@ function ActivityItem({
       <span className="text-sm font-semibold tabular-nums" style={{ color: deltaColor, flexShrink: 0 }}>
         {deltaText}
       </span>
+      <button
+        onClick={handleDelete}
+        style={{
+          flexShrink: 0,
+          width: 28, height: 28,
+          borderRadius: 8,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: confirming ? 'rgba(239,68,68,0.1)' : theme.divider,
+          border: `1px solid ${confirming ? 'rgba(239,68,68,0.3)' : theme.cardBorder}`,
+          transition: 'all 0.15s ease',
+          cursor: 'pointer',
+        }}
+        title={confirming ? 'Tap again to confirm removal' : 'Remove activity'}
+      >
+        {confirming
+          ? <CheckIcon size={12} color="#dc2626" />
+          : <XIcon size={12} color={theme.textTertiary} />
+        }
+      </button>
     </div>
   );
 }

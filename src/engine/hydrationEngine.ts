@@ -505,6 +505,20 @@ export function removeDrink(
   };
 }
 
+export function removeActivity(
+  state: HydrationState,
+  entryId: string
+): HydrationState {
+  const entry = (state.activityLog ?? []).find((e) => e.id === entryId);
+  if (!entry) return state;
+  const newLevel = Math.max(0, Math.min(100, state.level - entry.hydrationDelta));
+  return {
+    ...state,
+    level: newLevel,
+    activityLog: (state.activityLog ?? []).filter((e) => e.id !== entryId),
+  };
+}
+
 export function getWasteInsight(drinkLog: DrinkEntry[]): string | null {
   if (drinkLog.length < 2) return null;
 

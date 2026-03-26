@@ -9,6 +9,7 @@ import {
   createInitialState,
   getStatusColor,
   removeDrink,
+  removeActivity,
   activateHangoverMode,
   deactivateHangoverMode,
   loadAndMigrateState,
@@ -200,6 +201,14 @@ export default function App() {
   const handleRemove = useCallback((id: string) => {
     setState((prev) => {
       const updated = removeDrink(prev, id);
+      saveState(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleRemoveActivity = useCallback((id: string) => {
+    setState((prev) => {
+      const updated = removeActivity(prev, id);
       saveState(updated);
       return updated;
     });
@@ -412,7 +421,7 @@ export default function App() {
           <div className="mx-6 my-3" style={{ height: 1, background: theme.divider }} />
 
           {/* Log */}
-          <DrinkLog log={state.drinkLog} activityLog={state.activityLog} onRemove={handleRemove} />
+          <DrinkLog log={state.drinkLog} activityLog={state.activityLog} onRemove={handleRemove} onRemoveActivity={handleRemoveActivity} />
         </>
       )}
 
