@@ -64,6 +64,9 @@ export interface HydrationState {
   alcoholActivatedAt: number;
   userProfile: UserProfile;
   dailyHistory: DailyRecord[];
+  onboardingAnswers: Record<string, string> | null;
+  customDailyTargetOz: number | null;
+  profileSummary: string;
 }
 
 export interface DrinkOverrides {
@@ -140,6 +143,9 @@ export function createInitialState(): HydrationState {
     alcoholActivatedAt: 0,
     userProfile: defaultUserProfile(),
     dailyHistory: [],
+    onboardingAnswers: null,
+    customDailyTargetOz: null,
+    profileSummary: '',
   };
 }
 
@@ -179,7 +185,38 @@ function migrateState(state: Partial<HydrationState>): HydrationState {
     userProfile: { ...defaultUserProfile(), ...(state.userProfile ?? {}) },
     dailyHistory: state.dailyHistory ?? [],
     activityLog: state.activityLog ?? [],
+    onboardingAnswers: state.onboardingAnswers ?? null,
+    customDailyTargetOz: state.customDailyTargetOz ?? null,
+    profileSummary: state.profileSummary ?? '',
   };
+}
+
+/** Compute daily target oz from questionnaire answers */
+export function computeDailyTargetFromAnswers(
+  answers: Record<string, string>,
+  weightLbs: number
+): number {
+  let target = weightLbs * 0.55;
+
+  const activityMods: Record<string, number> = {
+    'Mostly sedentary': 0.88,
+    'Light exercise': 0.95,
+    'Moderately active': 1.05,
+    'Very active': 1.18,
+    'Athlete level': 1.30,
+  };
+  target *= (activityMods[answers.activityLevel] ?? 1.0);
+
+  if (answers.goal === 'Athletic performance') target *= 1.08;
+  else if (answers.goal === 'Skin & glow') target *= 1.05;
+
+  if (answers.caffeine === '4+ cups/day') target += 10;
+  else if (answers.caffeine === '2–3 cups/day') target += 5;
+
+  if (answers.alcohol === 'Daily') target += 10;
+  else if (answers.alcohol === 'A few times/week') target += 5;
+
+  return Math.round(Math.max(48, Math.min(220, target)));
 }
 
 export function loadAndMigrateState(raw: string): HydrationState {

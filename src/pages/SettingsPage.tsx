@@ -5,6 +5,7 @@ import type { UserProfile } from '../engine/hydrationEngine';
 import { getDailyTargetOz } from '../engine/hydrationEngine';
 import { GearIcon, WaterIcon } from '../components/Icons';
 import { useTheme, getTheme } from '../context/ThemeContext';
+import SetupQuestionsModal from '../components/SetupQuestionsModal';
 
 interface Props {
   profile: UserProfile;
@@ -13,6 +14,10 @@ interface Props {
   onToggleDark: () => void;
   session: Session | null;
   onLogout: () => void;
+  onSetupComplete: (answers: Record<string, string>, profile: Partial<UserProfile>) => void;
+  profileSummary: string;
+  customDailyTargetOz: number | null;
+  onboardingAnswers: Record<string, string> | null;
 }
 
 function InputField({
@@ -93,7 +98,7 @@ function SectionHeader({ icon, title, sub, theme }: { icon: React.ReactNode; tit
   );
 }
 
-export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, session, onLogout }: Props) {
+export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, session, onLogout, onSetupComplete, profileSummary, customDailyTargetOz, onboardingAnswers }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
   const [form, setForm] = useState({
@@ -107,6 +112,7 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
 
   const [saved, setSaved] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showSetupModal, setShowSetupModal] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -409,6 +415,66 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
           )}
         </div>
 
+        {/* My Profile card */}
+        <div style={{
+          background: theme.card, borderRadius: 20, padding: '16px',
+          boxShadow: theme.cardShadow, border: `1px solid ${theme.cardBorder}`,
+        }}>
+          <SectionHeader
+            icon={
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={theme.textSecondary} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+              </svg>
+            }
+            title="My Profile"
+            sub="Based on your setup answers"
+            theme={theme}
+          />
+
+          {/* Summary + target */}
+          {(profileSummary || customDailyTargetOz) ? (
+            <div style={{ marginBottom: 12 }}>
+              {customDailyTargetOz && (
+                <div style={{
+                  padding: '12px 14px', borderRadius: 12, marginBottom: 10,
+                  background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.15)',
+                }}>
+                  <p style={{ fontSize: 12, color: '#0891b2', fontWeight: 600, margin: '0 0 2px', letterSpacing: '0.04em' }}>DAILY GOAL</p>
+                  <p style={{ fontSize: 22, fontWeight: 800, color: theme.textPrimary, margin: 0, letterSpacing: '-0.02em' }}>
+                    {customDailyTargetOz} <span style={{ fontSize: 14, fontWeight: 500, color: theme.textSecondary }}>oz / day</span>
+                  </p>
+                </div>
+              )}
+              {profileSummary && (
+                <p style={{ fontSize: 13, color: theme.textSecondary, margin: 0, lineHeight: 1.6 }}>
+                  {profileSummary}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p style={{ fontSize: 13, color: theme.textTertiary, marginBottom: 12, lineHeight: 1.5 }}>
+              Answer a few questions so we can calculate your perfect daily hydration goal.
+            </p>
+          )}
+
+          <button
+            onClick={() => setShowSetupModal(true)}
+            style={{
+              width: '100%',
+              background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+              color: theme.textPrimary, border: `1px solid ${theme.cardBorder}`,
+              borderRadius: 12, padding: '11px 14px', fontSize: 14, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}
+          >
+            <span>{onboardingAnswers ? 'Redo Setup Questions' : 'Start Setup Questions'}</span>
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={theme.textTertiary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
+        </div>
+
         {/* Save button */}
         <button
           onClick={handleSave}
@@ -512,6 +578,18 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
             </div>
           </div>
         </>
+      )}
+
+      {/* Setup questions modal */}
+      {showSetupModal && (
+        <SetupQuestionsModal
+          initialAnswers={onboardingAnswers ?? undefined}
+          onComplete={(answers, profile) => {
+            setShowSetupModal(false);
+            onSetupComplete(answers, profile);
+          }}
+          onClose={() => setShowSetupModal(false)}
+        />
       )}
     </div>
   );

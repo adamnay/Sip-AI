@@ -13,8 +13,10 @@ import {
   deactivateHangoverMode,
   loadAndMigrateState,
   saveUserProfile,
+  computeDailyTargetFromAnswers,
 } from './engine/hydrationEngine';
 import type { DrinkType, HydrationState, DrinkOverrides, ActivityResult, UserProfile } from './engine/hydrationEngine';
+import { generateProfileSummary } from './api/profileAnalyzer';
 import HydrationRing from './components/HydrationRing';
 import FeedbackCard from './components/FeedbackCard';
 import DrinkInput from './components/DrinkInput';
@@ -118,6 +120,32 @@ export default function App() {
     setSession(null);
     supabase.auth.signOut().catch(() => {});
   }, []);
+
+  const handleSaveSetup = useCallback(async (
+    answers: Record<string, string>,
+    profileUpdates: Partial<UserProfile>
+  ) => {
+    const weightLbs = profileUpdates.weightLbs ?? state.userProfile.weightLbs ?? 155;
+    const targetOz = computeDailyTargetFromAnswers(answers, weightLbs);
+
+    // Apply immediately with the computed target and profile
+    setState(prev => {
+      const merged: UserProfile = { ...prev.userProfile, ...profileUpdates };
+      return {
+        ...saveUserProfile(prev, merged),
+        onboardingAnswers: answers,
+        customDailyTargetOz: targetOz,
+      };
+    });
+
+    // Generate AI summary in background
+    try {
+      const summary = await generateProfileSummary(answers, targetOz);
+      setState(prev => ({ ...prev, profileSummary: summary }));
+    } catch {
+      // summary stays empty — not critical
+    }
+  }, [state.userProfile]);
 
   const handleSelectDrink = useCallback((type: DrinkType) => {
     setSelectedDrinkType(type);
@@ -320,6 +348,10 @@ export default function App() {
         onToggleDark={handleToggleDark}
         session={session}
         onLogout={handleLogout}
+        onSetupComplete={handleSaveSetup}
+        profileSummary={state.profileSummary}
+        customDailyTargetOz={state.customDailyTargetOz}
+        onboardingAnswers={state.onboardingAnswers}
       />}
 
       {/* ── Home page ── */}
