@@ -1,7 +1,8 @@
 import type { HydrationState, DailyRecord } from '../engine/hydrationEngine';
 import { getStatusColor } from '../engine/hydrationEngine';
-import { TrophyIcon, BarChartIcon, WaterIcon, EnergyIcon } from '../components/Icons';
+import { TrophyIcon, BarChartIcon, WaterIcon, EnergyIcon, CoffeeIcon } from '../components/Icons';
 import { useTheme, getTheme } from '../context/ThemeContext';
+import CaffeineTimeline from '../components/CaffeineTimeline';
 
 interface Props {
   state: HydrationState;
@@ -298,6 +299,23 @@ export default function AnalyticsPage({ state }: Props) {
           <p style={{ fontSize: 11, color: theme.textTertiary, margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>
             Even 2% dehydration can reduce cognitive and physical performance by 10–20%. Staying above 70% keeps energy near peak.
           </p>
+        </div>
+
+        {/* Caffeine Timeline */}
+        <div style={{
+          background: theme.card,
+          borderRadius: 20,
+          padding: '16px',
+          boxShadow: theme.cardShadow,
+          border: `1px solid ${theme.cardBorder}`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+            <CoffeeIcon size={14} color={theme.textSecondary} />
+            <p style={{ fontSize: 12, fontWeight: 600, color: theme.textSecondary, letterSpacing: '0.06em', margin: 0 }}>
+              CAFFEINE TIMELINE
+            </p>
+          </div>
+          <CaffeineTimeline drinkLog={state.drinkLog} />
         </div>
 
         {/* Stats row */}
