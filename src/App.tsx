@@ -21,6 +21,16 @@ import {
 } from './engine/hydrationEngine';
 import type { DrinkType, HydrationState, DrinkOverrides, ActivityResult, UserProfile, DrinkEntry } from './engine/hydrationEngine';
 import { generateProfileSummary } from './api/profileAnalyzer';
+import {
+  loadNotifPrefs,
+  saveNotifPrefs,
+  fireNotification,
+  checkIntervalNotification,
+  checkThresholdNotification,
+  getIntervalMessage,
+  getThresholdMessage,
+} from './utils/notifications';
+import type { NotificationPrefs } from './utils/notifications';
 import HydrationRing from './components/HydrationRing';
 import FeedbackCard from './components/FeedbackCard';
 import DrinkInput from './components/DrinkInput';
@@ -86,6 +96,8 @@ export default function App() {
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try { return localStorage.getItem('sip-ai-dark') === 'true'; } catch { return false; }
   });
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(() => loadNotifPrefs());
+  const notifPrefsRef = useRef(notifPrefs);
 
   // Auth init
   useEffect(() => {
@@ -105,6 +117,12 @@ export default function App() {
   }, [darkMode]);
 
   const handleToggleDark = useCallback(() => setDarkMode(d => !d), []);
+
+  const handleSaveNotifPrefs = useCallback((prefs: NotificationPrefs) => {
+    setNotifPrefs(prefs);
+    saveNotifPrefs(prefs);
+    notifPrefsRef.current = prefs;
+  }, []);
 
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const decayIntervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
@@ -134,6 +152,38 @@ export default function App() {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
+  // Keep notifPrefsRef in sync
+  useEffect(() => { notifPrefsRef.current = notifPrefs; }, [notifPrefs]);
+
+  // Notification check — runs every 60s
+  useEffect(() => {
+    const checkNotifs = () => {
+      const prefs = notifPrefsRef.current;
+      if (!prefs.enabled) return;
+      const currentLevel = Math.round(
+        // read the most current state without subscribing to it
+        parseFloat(
+          (() => {
+            try {
+              const raw = localStorage.getItem('sip-ai-state-v2');
+              if (!raw) return '50';
+              const parsed = JSON.parse(raw);
+              return String(parsed.level ?? 50);
+            } catch { return '50'; }
+          })()
+        )
+      );
+      if (checkThresholdNotification(prefs, currentLevel)) {
+        fireNotification('Sip AI — Low Hydration', getThresholdMessage(currentLevel));
+      } else if (checkIntervalNotification(prefs)) {
+        fireNotification('Sip AI', getIntervalMessage(currentLevel));
+      }
+    };
+
+    const interval = setInterval(checkNotifs, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -440,6 +490,8 @@ export default function App() {
         profileSummary={state.profileSummary}
         customDailyTargetOz={state.customDailyTargetOz}
         onboardingAnswers={state.onboardingAnswers}
+        notifPrefs={notifPrefs}
+        onSaveNotifPrefs={handleSaveNotifPrefs}
       />}
 
       {/* ── Home page ── */}

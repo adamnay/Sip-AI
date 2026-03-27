@@ -5,6 +5,8 @@ import type { UserProfile } from '../engine/hydrationEngine';
 import { GearIcon } from '../components/Icons';
 import { useTheme, getTheme } from '../context/ThemeContext';
 import SetupQuestionsModal from '../components/SetupQuestionsModal';
+import type { NotificationPrefs } from '../utils/notifications';
+import { requestPermission, getPermissionState } from '../utils/notifications';
 
 interface Props {
   profile: UserProfile;
@@ -17,6 +19,8 @@ interface Props {
   profileSummary: string;
   customDailyTargetOz: number | null;
   onboardingAnswers: Record<string, string> | null;
+  notifPrefs: NotificationPrefs;
+  onSaveNotifPrefs: (prefs: NotificationPrefs) => void;
 }
 
 function InputField({
@@ -97,7 +101,7 @@ function SectionHeader({ icon, title, sub, theme }: { icon: React.ReactNode; tit
   );
 }
 
-export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, session, onLogout, onSetupComplete, profileSummary, customDailyTargetOz, onboardingAnswers }: Props) {
+export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, session, onLogout, onSetupComplete, profileSummary, customDailyTargetOz, onboardingAnswers, notifPrefs, onSaveNotifPrefs }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -108,6 +112,27 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
   const [passwordError, setPasswordError] = useState('');
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState(false);
+
+  const handleToggleNotifications = async () => {
+    if (notifPrefs.enabled) {
+      onSaveNotifPrefs({ ...notifPrefs, enabled: false });
+      setPermissionDenied(false);
+      return;
+    }
+    const state = getPermissionState();
+    if (state === 'denied' || state === 'unsupported') {
+      setPermissionDenied(true);
+      return;
+    }
+    const result = await requestPermission();
+    if (result === 'granted') {
+      onSaveNotifPrefs({ ...notifPrefs, enabled: true });
+      setPermissionDenied(false);
+    } else {
+      setPermissionDenied(true);
+    }
+  };
 
   const handlePasswordChange = async () => {
     setPasswordError('');
@@ -358,6 +383,164 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
               <path d="M9 18l6-6-6-6" />
             </svg>
           </button>
+        </div>
+
+        {/* Reminders */}
+        <div style={{
+          background: theme.card, borderRadius: 20, padding: '16px',
+          boxShadow: theme.cardShadow, border: `1px solid ${theme.cardBorder}`,
+        }}>
+          <SectionHeader
+            icon={
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={theme.textSecondary} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+            }
+            title="Reminders"
+            sub="Get notified to stay hydrated"
+            theme={theme}
+          />
+
+          {/* Enable toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: notifPrefs.enabled ? 14 : 0 }}>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, margin: 0 }}>Enable Reminders</p>
+              <p style={{ fontSize: 12, color: theme.textSecondary, margin: '2px 0 0' }}>
+                {notifPrefs.enabled ? 'Notifications on' : 'Tap to turn on'}
+              </p>
+            </div>
+            <button
+              onClick={handleToggleNotifications}
+              style={{
+                width: 50, height: 28, borderRadius: 14,
+                background: notifPrefs.enabled ? '#0ea5e9' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)'),
+                border: 'none', cursor: 'pointer', position: 'relative',
+                transition: 'background 0.25s ease', flexShrink: 0,
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 3,
+                left: notifPrefs.enabled ? 25 : 3,
+                width: 22, height: 22, borderRadius: '50%',
+                background: '#ffffff', transition: 'left 0.25s ease',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.25)', display: 'block',
+              }} />
+            </button>
+          </div>
+
+          {/* Denied message */}
+          {permissionDenied && (
+            <p style={{ fontSize: 12, color: '#dc2626', margin: '0 0 12px', lineHeight: 1.5 }}>
+              Notifications are blocked. Please enable them in your browser or device settings.
+            </p>
+          )}
+
+          {/* Options — only show when enabled */}
+          {notifPrefs.enabled && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+              {/* Interval reminder */}
+              <div style={{
+                padding: '12px 14px', borderRadius: 12,
+                background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                border: `1px solid ${theme.cardBorder}`,
+              }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: theme.textPrimary, margin: '0 0 8px' }}>
+                  Timed Reminder
+                </p>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[0, 1, 2, 4].map(h => (
+                    <button
+                      key={h}
+                      onClick={() => onSaveNotifPrefs({ ...notifPrefs, intervalHours: h })}
+                      style={{
+                        flex: 1, padding: '7px 4px', borderRadius: 9,
+                        fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        background: notifPrefs.intervalHours === h
+                          ? '#0ea5e9'
+                          : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                        color: notifPrefs.intervalHours === h
+                          ? '#ffffff'
+                          : theme.textSecondary,
+                        border: notifPrefs.intervalHours === h
+                          ? 'none'
+                          : `1px solid ${theme.cardBorder}`,
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {h === 0 ? 'Off' : `${h}h`}
+                    </button>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: theme.textTertiary, margin: '6px 0 0', lineHeight: 1.4 }}>
+                  {notifPrefs.intervalHours === 0 ? 'No timed reminders' : `Remind me every ${notifPrefs.intervalHours} hour${notifPrefs.intervalHours > 1 ? 's' : ''}`}
+                </p>
+              </div>
+
+              {/* Threshold reminder */}
+              <div style={{
+                padding: '12px 14px', borderRadius: 12,
+                background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                border: `1px solid ${theme.cardBorder}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: notifPrefs.thresholdEnabled ? 8 : 0 }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: theme.textPrimary, margin: 0 }}>Low Level Alert</p>
+                    <p style={{ fontSize: 11, color: theme.textSecondary, margin: '2px 0 0' }}>Notify when hydration drops low</p>
+                  </div>
+                  <button
+                    onClick={() => onSaveNotifPrefs({ ...notifPrefs, thresholdEnabled: !notifPrefs.thresholdEnabled })}
+                    style={{
+                      width: 42, height: 24, borderRadius: 12,
+                      background: notifPrefs.thresholdEnabled ? '#0ea5e9' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)'),
+                      border: 'none', cursor: 'pointer', position: 'relative',
+                      transition: 'background 0.25s ease', flexShrink: 0,
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute', top: 2,
+                      left: notifPrefs.thresholdEnabled ? 20 : 2,
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: '#ffffff', transition: 'left 0.25s ease',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)', display: 'block',
+                    }} />
+                  </button>
+                </div>
+                {notifPrefs.thresholdEnabled && (
+                  <>
+                    <p style={{ fontSize: 11, color: theme.textTertiary, margin: '0 0 6px' }}>Alert me when below:</p>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {[30, 45, 60].map(pct => (
+                        <button
+                          key={pct}
+                          onClick={() => onSaveNotifPrefs({ ...notifPrefs, thresholdLevel: pct })}
+                          style={{
+                            flex: 1, padding: '7px 4px', borderRadius: 9,
+                            fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                            fontFamily: 'inherit',
+                            background: notifPrefs.thresholdLevel === pct
+                              ? '#f97316'
+                              : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                            color: notifPrefs.thresholdLevel === pct
+                              ? '#ffffff'
+                              : theme.textSecondary,
+                            border: notifPrefs.thresholdLevel === pct
+                              ? 'none'
+                              : `1px solid ${theme.cardBorder}`,
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {pct}%
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Sign out */}
