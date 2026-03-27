@@ -61,13 +61,41 @@ export function playDing() {
   osc2.start(now); osc2.stop(now + 0.20);
 }
 
+/**
+ * Soft descending tone for removals — lower pitch, shorter, goes down.
+ * Clearly distinct from the add ding so the user knows something was taken away.
+ */
+export function playRemove() {
+  const ac = getCtx();
+  if (!ac) return;
+
+  const now = ac.currentTime;
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+
+  osc.type = 'sine';
+  // Descend from E5 (660 Hz) → A4 (440 Hz) — same notes as ding, octave lower, going down
+  osc.frequency.setValueAtTime(660, now);
+  osc.frequency.exponentialRampToValueAtTime(440, now + 0.18);
+
+  osc.connect(gain);
+  gain.connect(ac.destination);
+  gain.gain.setValueAtTime(0.001, now);
+  gain.gain.linearRampToValueAtTime(0.18, now + 0.006);  // fast attack
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28); // short tail
+
+  osc.start(now);
+  osc.stop(now + 0.28);
+}
+
 /** Trigger both haptic + ding — for adding a drink or activity */
 export function feedbackAdd() {
   haptic(9);
   playDing();
 }
 
-/** Trigger haptic only — for removing a drink, activity, or favorite */
+/** Trigger haptic + descending tone — for removing a drink, activity, or favorite */
 export function feedbackRemove() {
   haptic([8, 55, 8]);
+  playRemove();
 }
