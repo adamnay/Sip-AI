@@ -62,30 +62,31 @@ export function playDing() {
 }
 
 /**
- * Soft descending tone for removals — lower pitch, shorter, goes down.
- * Clearly distinct from the add ding so the user knows something was taken away.
+ * Soft rejection thud — two quick low "dun-dun" pulses, like a gentle "nope".
+ * Low frequency (330 → 220 Hz), very short and muffled, nothing harsh.
  */
 export function playRemove() {
   const ac = getCtx();
   if (!ac) return;
 
   const now = ac.currentTime;
-  const osc = ac.createOscillator();
-  const gain = ac.createGain();
 
-  osc.type = 'sine';
-  // Descend from E5 (660 Hz) → A4 (440 Hz) — same notes as ding, octave lower, going down
-  osc.frequency.setValueAtTime(660, now);
-  osc.frequency.exponentialRampToValueAtTime(440, now + 0.18);
+  const hit = (startTime: number, freq: number) => {
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    gain.gain.setValueAtTime(0.001, startTime);
+    gain.gain.linearRampToValueAtTime(0.14, startTime + 0.004); // near-instant attack
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.10); // very short decay
+    osc.start(startTime);
+    osc.stop(startTime + 0.10);
+  };
 
-  osc.connect(gain);
-  gain.connect(ac.destination);
-  gain.gain.setValueAtTime(0.001, now);
-  gain.gain.linearRampToValueAtTime(0.18, now + 0.006);  // fast attack
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28); // short tail
-
-  osc.start(now);
-  osc.stop(now + 0.28);
+  hit(now,        330); // first pulse — E4
+  hit(now + 0.11, 220); // second pulse — A3, lower = "nope"
 }
 
 /** Trigger both haptic + ding — for adding a drink or activity */
