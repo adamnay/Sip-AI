@@ -181,19 +181,19 @@ function CaffeinePage() {
     <div>
       <SectionTitle>Caffeine & Hydration</SectionTitle>
       <StatCard
-        text="80mg+ of caffeine increases fluid loss by up to 30%"
+        text="Energy drinks with 280mg caffeine had hydration properties 14%+ lower than plain water — while 100mg caffeine drinks with electrolytes matched water almost exactly"
         color="#3b82f6"
       />
       <BodyText>
-        Caffeine is a mild diuretic — it signals your kidneys to release more water. A single cup of coffee (95mg caffeine) can increase urine output by ~300ml within 3 hours. Regular intake above 400mg/day significantly accelerates dehydration.
+        Caffeine's diuretic effect is real but nuanced — it's far more about dose than most people realize. Research using the Beverage Hydration Index (BHI) shows that low-caffeine drinks (~100mg) paired with electrolytes hydrate nearly as well as water. But high-caffeine formulas (280mg+) show measurable net fluid loss even after accounting for the liquid consumed.
       </BodyText>
       <BodyText>
-        The effect is dose-dependent: small amounts (&lt;80mg) are largely offset by the fluid you consume. Once you cross the 80mg threshold, net fluid loss begins to accumulate. Daily caffeine tolerance can reduce but never eliminates the diuretic effect.
+        Unlike earlier research suggested, habitual caffeine use did not significantly reduce the diuretic response at higher doses — the fluid-loss effect scales with the amount of caffeine, regardless of how often you drink it. The bigger protective factor is electrolyte content in the drink, not your tolerance level.
       </BodyText>
       <CalcBox>
         We track caffeine half-life (5 hours) and add 0.4–1.5% extra decay per hour above the 80mg threshold. The more caffeine active in your system, the faster your hydration drops.
       </CalcBox>
-      <Citation>Journal of Human Nutrition and Dietetics, 2014</Citation>
+      <Citation>Millard-Stafford et al., Nutrients, 2025 — "Caffeinated Energy Drink Formulations Differentially Impact Hydration Versus Water" (PMID: PMC12472760)</Citation>
     </div>
   );
 }
@@ -203,19 +203,19 @@ function ElectrolytesPage() {
     <div>
       <SectionTitle>Electrolytes & Absorption</SectionTitle>
       <StatCard
-        text="Sodium and potassium boost water absorption by up to 35%"
+        text="Electrolyte content alone improves a drink's hydration power by 12%+ over plain water — the combination of electrolytes and carbohydrates pushes that to 15%"
         color="#22c55e"
       />
       <BodyText>
-        Electrolytes create an osmotic gradient that pulls water across intestinal cells faster. This is why sports drinks hydrate faster than plain water during exercise. Sodium, potassium, and magnesium are the key minerals.
+        Using the Beverage Hydration Index — a standardized measure of how well a drink retains fluid in the body vs. plain water — research confirmed that electrolytes are the single biggest driver of how hydrating a drink actually is. Sodium is the primary factor: it activates glucose-sodium co-transport (SGLT1) in the intestinal wall, physically pulling water in alongside it.
       </BodyText>
       <BodyText>
-        The absorption benefit lasts approximately 4 hours after consuming electrolytes. During this window, any water or juice you drink is significantly more effective at raising your hydration level. This is especially important after exercise or sweating.
+        Adding carbohydrates on top of electrolytes improves absorption further, but electrolytes alone already outperform plain water significantly. This is why a basic electrolyte tablet dissolved in water can outperform expensive sports drinks — the sodium content matters far more than the brand. The absorption benefit is most pronounced in the first 2 hours and tapers through hour 4.
       </BodyText>
       <CalcBox>
         We apply a 35% absorption multiplier to water and juice consumed within 4 hours of electrolyte intake. Electrolytes also reduce your baseline decay rate by 0.4% per hour while active.
       </CalcBox>
-      <Citation>American Journal of Clinical Nutrition, 2015</Citation>
+      <Citation>Millard-Stafford et al., Nutrients, 2021 — "The Beverage Hydration Index: Influence of Electrolytes, Carbohydrate and Protein" (PMID: 34578811)</Citation>
     </div>
   );
 }
@@ -225,19 +225,19 @@ function AlcoholPage() {
     <div>
       <SectionTitle>Alcohol & Dehydration</SectionTitle>
       <StatCard
-        text="Each alcoholic drink causes net fluid loss of 100–150ml"
+        text="Alcohol suppresses vasopressin (the hormone that tells your kidneys to hold water) for hours after your last drink — meaning fluid loss continues long after you stop drinking"
         color="#ef4444"
       />
       <BodyText>
-        Alcohol suppresses antidiuretic hormone (ADH), causing kidneys to produce 4x more urine than normal. A standard drink (14g alcohol) triggers a net fluid deficit of ~100–150ml. This is why alcohol consumption without water intake leads to rapid dehydration.
+        The dehydrating mechanism of alcohol is more prolonged than previously thought. Using copeptin — a stable marker for vasopressin (antidiuretic hormone) — researchers confirmed that alcohol doesn't just briefly blunt ADH: it extends vasopressin suppression for several hours after drinking ends. This means your kidneys keep producing excess urine even while you sleep, accumulating a deficit that worsens through the night.
       </BodyText>
       <BodyText>
-        The ADH suppression effect peaks within 30–60 minutes of drinking and lasts for several hours. This is the primary mechanism behind next-morning hangover symptoms — your body is severely depleted of both water and electrolytes.
+        The same study found that drinking extra water alongside alcohol or adding sodium didn't fully counteract this vasopressin suppression. The fluid-loss effect is driven by alcohol's direct pharmacological action on the brain — not simply a dilution or osmolality effect that more water can fix. Each standard drink creates a net fluid deficit of approximately 100–150ml.
       </BodyText>
       <CalcBox>
-        Alcohol adds a negative hydration delta (-1.5% to -4.5% per drink based on type) and increases baseline decay rate by +0.8%/hour for 6 hours after consumption. Hangover mode reflects the compounded dehydration from the prior night.
+        Alcohol adds a negative hydration delta (-1.5% to -4.5% per drink based on type) and increases baseline decay rate by +0.8%/hour for 6 hours after consumption. Hangover mode reflects the compounded overnight dehydration from vasopressin suppression.
       </CalcBox>
-      <Citation>Alcohol and Alcoholism Journal, 2010</Citation>
+      <Citation>Sailer et al., American Journal of Physiology – Renal Physiology, 2020 — "Effects of Alcohol Consumption on Copeptin Levels and Sodium-Water Homeostasis" (PMID: 31961713)</Citation>
     </div>
   );
 }
@@ -248,54 +248,53 @@ function HangoverPage() {
       <SectionTitle>Hangover & Recovery</SectionTitle>
 
       <StatCard
-        text="A night of 4–6 drinks can cause a net fluid deficit of 400–600ml — putting you in clinical mild dehydration before you even wake up"
+        text="A hangover is not just dehydration — it's a multi-system syndrome involving immune activation, acetaldehyde toxicity, gut inflammation, and disrupted sleep, all hitting simultaneously"
         color="#f97316"
       />
 
       <BodyText>
-        Alcohol suppresses antidiuretic hormone (ADH/vasopressin), forcing your kidneys to produce up to 4× more urine than normal. Each standard drink (14g alcohol) drives a net fluid loss of ~100–150ml beyond what you consumed — even accounting for the liquid in the drink itself. By the time your blood alcohol returns to zero, most of the damage is done.
+        A decade of research from the Alcohol Hangover Research Group redefined what a hangover actually is. While dehydration is a real component, the 2020 consensus concluded it's one of at least six overlapping mechanisms: alcohol's primary metabolite acetaldehyde triggers immune cells to release inflammatory cytokines, your blood sugar swings from alcohol's effect on gluconeogenesis, sleep architecture is disrupted even if you feel like you slept, and gastrointestinal lining is directly irritated — all of which amplify each other.
       </BodyText>
 
       <CalcBox>
-        Sip AI caps your hydration at 40% when you activate Recovery Mode. Here's the math: a typical overnight starting point of ~75%, minus normal sleep losses (~300ml) and alcohol diuresis from 5 drinks (~500ml), against a ~2.5L optimal baseline — leaves you at roughly 38–42% by morning. 40% is the evidence-based midpoint.
+        Sip AI caps your hydration at 40% when you activate Recovery Mode. Here's the math: a typical overnight starting point of ~75%, minus normal sleep losses (~300ml) and alcohol-driven vasopressin suppression from 5 drinks (~500ml net fluid deficit), against a ~2.5L optimal baseline — leaves you at roughly 38–42% by morning. 40% is the evidence-based midpoint.
       </CalcBox>
-      <Citation>Verster et al., Current Drug Abuse Reviews, 2010 — "The Alcohol Hangover Research Group Consensus Statement"</Citation>
+      <Citation>Verster, Arnoldy et al., Journal of Clinical Medicine, 2020 — "The Alcohol Hangover Research Group: Ten Years of Progress" (PMID: 33207574)</Citation>
 
       <SectionTitle style={{ marginTop: 24 }}>Why Recovery Takes Longer</SectionTitle>
 
       <StatCard
-        text="Your fluid needs are ~25–50% higher than baseline during a hangover — even after you stop drinking"
+        text="Immune activation and cytokine release during a hangover raise your metabolic rate and body temperature — increasing fluid loss through respiration and skin even when you're lying still"
         color="#f97316"
       />
 
       <BodyText>
-        Hangover isn't just dehydration — it's a multi-system inflammatory response. Acetaldehyde (alcohol's primary metabolite) triggers cytokine release, raising your body temperature and metabolic rate. This increases insensible fluid losses through skin and respiration. At the same time, nausea suppresses your ability to rehydrate effectively, and your gut's water absorption is compromised.
+        The inflammatory response is a major underappreciated driver of hangover dehydration. Acetaldehyde — alcohol's first breakdown product — directly stimulates the immune system to release interleukins and tumor necrosis factor. This cytokine release elevates core temperature slightly, increases insensible fluid loss (breath, sweat), and suppresses appetite so you don't want to eat or drink. The net result: you're losing fluid faster than baseline while simultaneously being too nauseous to replace it.
       </BodyText>
 
       <BodyText>
-        Studies measuring urine osmolality during hangovers confirm that kidneys continue operating in a semi-depleted state for 8–12 hours after BAC returns to zero. Your body is still working to restore electrolyte balance and clear acetaldehyde, both of which cost water.
+        The gut is compromised too. Alcohol irritates intestinal lining and slows gastric emptying, meaning water you do manage to drink absorbs more slowly than normal — the opposite of what you need. This is why small, frequent sips of electrolyte fluid outperform large volumes of plain water during recovery.
       </BodyText>
 
       <CalcBox>
-        Sip AI applies a 1.5× decay multiplier while Recovery Mode is active — meaning hydration drops 50% faster than your baseline rate. This is consistent with research showing 25–50% elevated fluid turnover during hangover recovery. Drink water and electrolytes first; other drinks are deprioritized in the UI to reflect this.
+        Sip AI applies a 1.5× decay multiplier while Recovery Mode is active — hydration drops 50% faster than your baseline rate, reflecting the combination of elevated fluid turnover and impaired absorption. Drink water and electrolytes first; other drinks are deprioritized in the UI to reflect this.
       </CalcBox>
-      <Citation>Swift & Davidson, Alcohol Health & Research World, 1998</Citation>
-      <Citation>Wiese et al., Annals of Internal Medicine, 2000 — "Interventions for preventing or treating alcohol hangover"</Citation>
+      <Citation>Verster, Scholey et al., Journal of Clinical Medicine, 2020 — "Updating the Definition of the Alcohol Hangover" (PMID: 32197381)</Citation>
 
       <SectionTitle style={{ marginTop: 24 }}>What Actually Helps</SectionTitle>
 
       <BodyText>
-        The most evidence-backed hangover interventions are plain water and electrolyte replacement — specifically sodium, potassium, and magnesium, which are disproportionately lost through alcohol-driven diuresis. Isotonic drinks (sports drinks, electrolyte packets) outperform plain water during recovery because they restore both fluid volume and the osmotic gradient your cells need to absorb it.
+        Electrolyte-enhanced water is the clear leader for recovery — not because of marketing, but because sodium activates SGLT1 co-transport in the intestine, physically pulling water across the gut wall faster. Plain water doesn't trigger this mechanism. The electrolyte packet in a glass of water will rehydrate you measurably faster than the glass of water alone, which matters when your gut is already compromised.
       </BodyText>
 
       <BodyText>
-        Coffee and energy drinks worsen the situation — caffeine's mild diuretic effect adds to your deficit, and the additional ADH suppression prolongs recovery. Juice and herbal tea are reasonable second-tier options: they provide fluid plus some electrolytes without the diuretic penalty.
+        Coffee and energy drinks consistently worsen the situation — caffeine's vasopressin-suppressing effect compounds the overnight deficit already created by alcohol. Juice is a reasonable second option (glucose helps absorption, and potassium partially replaces what's lost). Herbal tea provides fluid without diuretic penalty. The research is consistent: restore electrolytes first, plain water second, everything else later.
       </BodyText>
 
       <CalcBox>
         This is why Sip AI highlights Water and Electrolytes as "best" picks in Recovery Mode, Juice and Tea as "good," and Coffee, Energy Drinks, Soda, and Alcohol as "avoid." The rankings directly reflect the evidence on rehydration efficacy during hangover recovery.
       </CalcBox>
-      <Citation>Verster & Penning, Current Drug Abuse Reviews, 2010</Citation>
+      <Citation>Verster, Arnoldy et al., Journal of Clinical Medicine, 2020 (PMID: 33207574)</Citation>
     </div>
   );
 }
@@ -305,19 +304,19 @@ function DecayPage() {
     <div>
       <SectionTitle>Why Hydration Decays</SectionTitle>
       <StatCard
-        text="The average adult loses 2–3 liters of water per day at rest"
+        text="Even mild dehydration — just 1–2% of body weight — measurably impairs working memory, attention, and inhibitory control, according to a 2021 systematic review of 33 studies"
         color="#f59e0b"
       />
       <BodyText>
-        Your body continuously loses water through breathing (~0.3L/day), sweating (~0.5L/day), and urination (~1.5L/day). This means hydration naturally drops even without exercise. The rate increases with temperature, activity, caffeine, and alcohol.
+        Your body loses water continuously through urination (~1.5L/day), breathing (~0.3L/day), and sweating (~0.5L/day at rest) — totaling 2–3 liters daily before any exercise or heat. This loss doesn't pause while you work, sleep, or scroll your phone. The "8 glasses a day" rule is a rough population average; your actual needs depend heavily on body weight, activity level, climate, and what you ate.
       </BodyText>
       <BodyText>
-        Factors like dry environments, high altitude, illness, and medications can all accelerate this rate. The standard 8-glasses-a-day recommendation is a rough average — your actual needs vary widely based on body weight, activity level, and climate.
+        What's changed in recent research is a sharper picture of when dehydration starts to matter. A 2021 systematic review screened 4,833 studies and found consistent evidence that even subclinical dehydration — the kind where you don't feel thirsty yet — degrades executive function. Working memory is the most sensitive: tasks requiring you to hold and manipulate information show impairment before physical symptoms appear. This is why hydration tracking matters even on days when you feel fine.
       </BodyText>
       <CalcBox>
-        We apply a base 3%/hour decay rate, adjusting for caffeine (+up to 1.5%), electrolytes (-0.4%), alcohol (+0.8%), and hangover mode (x1.5). Activity logging adds an immediate deficit based on estimated sweat loss for your exercise type and duration.
+        We apply a base 3%/hour decay rate, adjusting for caffeine (+up to 1.5%), electrolytes (-0.4%), alcohol (+0.8%), and hangover mode (×1.5). Activity logging adds an immediate deficit based on estimated sweat loss for your exercise type and duration. The decay model is designed to reflect the continuous, baseline fluid loss your body runs through every hour.
       </CalcBox>
-      <Citation>European Journal of Clinical Nutrition, 2010</Citation>
+      <Citation>Katz, Airaghi & Davy, Journal of the Academy of Nutrition and Dietetics, 2021 — "Does Hydration Status Influence Executive Function? A Systematic Review" (PMID: 33547031)</Citation>
     </div>
   );
 }
