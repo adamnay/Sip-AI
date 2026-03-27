@@ -650,6 +650,7 @@ export default function App() {
       {/* Urine color sheet */}
       {showUrineSheet && (
         <UrineColorSheet
+          currentLevel={Math.round(state.level)}
           onResult={handleUrineResult}
           onClose={() => setShowUrineSheet(false)}
         />
