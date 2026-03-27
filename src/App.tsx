@@ -50,6 +50,7 @@ import LoginPage from './pages/LoginPage';
 import { FlaskIcon, StarIcon } from './components/Icons';
 
 type Page = 'home' | 'analytics' | 'settings' | 'science';
+const PAGE_ORDER: Page[] = ['home', 'analytics', 'settings'];
 
 const STORAGE_KEY = 'sip-ai-state-v2';
 
@@ -95,6 +96,8 @@ export default function App() {
   const [page, setPage] = useState<Page>('home');
   const [selectedDrinkType, setSelectedDrinkType] = useState<DrinkType | null>(null);
   const [showUrineSheet, setShowUrineSheet] = useState(false);
+  const [pageEnterDir, setPageEnterDir] = useState<'right' | 'left' | null>(null);
+  const pageRef = useRef<Page>('home');
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try { return localStorage.getItem('sip-ai-dark') === 'true'; } catch { return false; }
   });
@@ -119,6 +122,14 @@ export default function App() {
   }, [darkMode]);
 
   const handleToggleDark = useCallback(() => setDarkMode(d => !d), []);
+
+  const handleNavigate = useCallback((newPage: Page) => {
+    const oldIdx = PAGE_ORDER.indexOf(pageRef.current);
+    const newIdx = PAGE_ORDER.indexOf(newPage);
+    setPageEnterDir(newIdx >= oldIdx ? 'right' : 'left');
+    pageRef.current = newPage;
+    setPage(newPage);
+  }, []);
 
   const handleSaveNotifPrefs = useCallback((prefs: NotificationPrefs) => {
     setNotifPrefs(prefs);
@@ -420,7 +431,11 @@ export default function App() {
   if (page === 'science') {
     return (
       <ThemeContext.Provider value={darkMode}>
-        <SciencePage onClose={() => setPage('home')} />
+        <SciencePage onClose={() => {
+          setPageEnterDir('left');
+          pageRef.current = 'home';
+          setPage('home');
+        }} />
       </ThemeContext.Provider>
     );
   }
@@ -431,7 +446,7 @@ export default function App() {
     <ThemeContext.Provider value={darkMode}>
     <div
       className="min-h-dvh flex flex-col"
-      style={{ background: theme.bg, maxWidth: 420, margin: '0 auto' }}
+      style={{ background: theme.bg, maxWidth: 420, margin: '0 auto', overflowX: 'hidden' }}
     >
       {/* ── Header (always visible) ── */}
       <header className="flex items-center justify-between px-5 pt-5 pb-1" style={{ background: theme.bg }}>
@@ -521,7 +536,12 @@ export default function App() {
         </div>
       </header>
 
-      {/* ── Page content ── */}
+      {/* ── Animated page wrapper ── */}
+      <div
+        key={page}
+        className={pageEnterDir === 'right' ? 'page-from-right' : pageEnterDir === 'left' ? 'page-from-left' : ''}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+      >
       {page === 'analytics' && <AnalyticsPage state={state} />}
       {page === 'settings' && <SettingsPage
         profile={state.userProfile}
@@ -644,8 +664,9 @@ export default function App() {
         </>
       )}
 
-      {/* Bottom nav spacer */}
+      {/* Bottom nav spacer — inside animated wrapper so it scrolls with content */}
       {showBottomNav && <div style={{ height: 74 }} />}
+      </div>{/* end animated page wrapper */}
 
       {/* Urine color sheet */}
       {showUrineSheet && (
@@ -667,7 +688,7 @@ export default function App() {
       {showBottomNav && (
         <BottomNav
           activePage={page as 'home' | 'analytics' | 'settings'}
-          onNavigate={(p) => setPage(p)}
+          onNavigate={handleNavigate}
           onScanComplete={(type) => setSelectedDrinkType(type)}
         />
       )}
