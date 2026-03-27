@@ -31,6 +31,8 @@ import {
   getThresholdMessage,
 } from './utils/notifications';
 import type { NotificationPrefs } from './utils/notifications';
+import { generateNotificationMessage } from './api/notificationWriter';
+import type { NotifContext } from './api/notificationWriter';
 import HydrationRing from './components/HydrationRing';
 import FeedbackCard from './components/FeedbackCard';
 import DrinkInput from './components/DrinkInput';
@@ -157,29 +159,71 @@ export default function App() {
   // Keep notifPrefsRef in sync
   useEffect(() => { notifPrefsRef.current = notifPrefs; }, [notifPrefs]);
 
-  // Notification check — runs every 60s
+  // Notification check — runs every 60s, uses AI-generated messages
   useEffect(() => {
     const checkNotifs = () => {
       const prefs = notifPrefsRef.current;
       if (!prefs.enabled) return;
-      const currentLevel = Math.round(
-        // read the most current state without subscribing to it
-        parseFloat(
-          (() => {
-            try {
-              const raw = localStorage.getItem('sip-ai-state-v2');
-              if (!raw) return '50';
-              const parsed = JSON.parse(raw);
-              return String(parsed.level ?? 50);
-            } catch { return '50'; }
-          })()
-        )
-      );
-      if (checkThresholdNotification(prefs, currentLevel)) {
-        fireNotification('Sip AI — Low Hydration', getThresholdMessage(currentLevel));
+
+      // Read latest state from localStorage (avoids stale closure)
+      let ctx: NotifContext;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const s = JSON.parse(raw);
+
+        const level = Math.round(s.level ?? 50);
+        const now = Date.now();
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayMs = todayStart.getTime();
+
+        const drinkLog: Array<{ timestamp: number }> = s.drinkLog ?? [];
+        const activityLog: Array<{ timestamp: number }> = s.activityLog ?? [];
+        const drinksToday = drinkLog.filter(d => d.timestamp >= todayMs).length;
+        const hadActivityToday = activityLog.some(a => a.timestamp >= todayMs);
+
+        // drinkLog is sorted most-recent first
+        const lastDrink = drinkLog.find(d => d.timestamp >= todayMs);
+        const lastDrinkMinutesAgo = lastDrink
+          ? Math.round((now - lastDrink.timestamp) / 60_000)
+          : null;
+
+        const hour = new Date().getHours();
+        const timeOfDay: NotifContext['timeOfDay'] =
+          hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 21 ? 'evening' : 'night';
+
+        ctx = {
+          level,
+          trigger: 'interval',
+          streak: s.streak ?? 0,
+          userName: s.userProfile?.name ?? '',
+          timeOfDay,
+          drinksLoggedToday: drinksToday,
+          hadActivityToday,
+          lastDrinkMinutesAgo,
+        };
+      } catch { return; }
+
+      let trigger: NotifContext['trigger'] | null = null;
+      if (checkThresholdNotification(prefs, ctx.level)) {
+        trigger = 'threshold';
       } else if (checkIntervalNotification(prefs)) {
-        fireNotification('Sip AI', getIntervalMessage(currentLevel));
+        trigger = 'interval';
       }
+      if (!trigger) return;
+
+      ctx.trigger = trigger;
+
+      // Generate AI message, fall back to static on error
+      generateNotificationMessage(ctx)
+        .then(({ title, body }) => fireNotification(title, body))
+        .catch(() => {
+          const msg = trigger === 'threshold'
+            ? getThresholdMessage(ctx.level)
+            : getIntervalMessage(ctx.level);
+          fireNotification('Sip AI', msg);
+        });
     };
 
     const interval = setInterval(checkNotifs, 60_000);
