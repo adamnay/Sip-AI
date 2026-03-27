@@ -551,30 +551,6 @@ export default function App() {
             />
           </div>
 
-          {/* Urine color check-in trigger */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-            <button
-              onClick={() => setShowUrineSheet(true)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '5px 13px', borderRadius: 20,
-                background: 'transparent',
-                border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.09)'}`,
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >
-              {/* Mini color strip */}
-              <div style={{ display: 'flex', gap: 2 }}>
-                {['#fef9c3', '#fde047', '#eab308', '#d97706', '#b45309'].map(c => (
-                  <div key={c} style={{ width: 8, height: 8, borderRadius: 2, background: c }} />
-                ))}
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: darkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.38)', letterSpacing: '-0.01em' }}>
-                Color check
-              </span>
-            </button>
-          </div>
-
           {/* Hydration debt badge */}
           {yesterdayDebt && (
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
@@ -627,6 +603,30 @@ export default function App() {
           {/* Activity input */}
           <div className="px-4 mt-3">
             <ActivityInput onActivity={handleActivity} />
+          </div>
+
+          {/* Urine color check-in trigger */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
+            <button
+              onClick={() => setShowUrineSheet(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 13px', borderRadius: 20,
+                background: 'transparent',
+                border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.09)'}`,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              {/* Mini color strip */}
+              <div style={{ display: 'flex', gap: 2 }}>
+                {['#fef9c3', '#fde047', '#eab308', '#d97706', '#b45309'].map(c => (
+                  <div key={c} style={{ width: 8, height: 8, borderRadius: 2, background: c }} />
+                ))}
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 600, color: darkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.38)', letterSpacing: '-0.01em' }}>
+                Color check
+              </span>
+            </button>
           </div>
 
           {/* Divider */}
