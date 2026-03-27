@@ -32,6 +32,7 @@ import {
 } from './utils/notifications';
 import type { NotificationPrefs } from './utils/notifications';
 import { generateNotificationMessage } from './api/notificationWriter';
+import { feedbackAdd, feedbackRemove } from './utils/feedback';
 import type { NotifContext } from './api/notificationWriter';
 import HydrationRing from './components/HydrationRing';
 import FeedbackCard from './components/FeedbackCard';
@@ -297,6 +298,7 @@ export default function App() {
   }, []);
 
   const handleScanConfirm = useCallback((type: DrinkType, volumeMl: number, displayName: string, thumbnail?: string) => {
+    feedbackAdd();
     setState((prev) => {
       const decayed = applyTimeDecay(prev);
       const overrides = {
@@ -312,6 +314,7 @@ export default function App() {
   const handleFlowConfirm = useCallback(
     (type: DrinkType, volume_ml: number, overrides: DrinkOverrides) => {
       setSelectedDrinkType(null);
+      feedbackAdd();
       setState((prev) => {
         const decayed = applyTimeDecay(prev);
         const { newState, entry } = addDrink(decayed, type, volume_ml, overrides);
@@ -327,6 +330,7 @@ export default function App() {
   }, []);
 
   const handleRemove = useCallback((id: string) => {
+    feedbackRemove();
     setState((prev) => {
       const updated = removeDrink(prev, id);
       saveState(updated);
@@ -335,6 +339,7 @@ export default function App() {
   }, []);
 
   const handleRemoveActivity = useCallback((id: string) => {
+    feedbackRemove();
     setState((prev) => {
       const updated = removeActivity(prev, id);
       saveState(updated);
@@ -351,6 +356,7 @@ export default function App() {
   }, []);
 
   const handleRemoveFavorite = useCallback((id: string) => {
+    feedbackRemove();
     setState((prev) => {
       const updated = removeFavorite(prev, id);
       saveState(updated);
@@ -369,6 +375,7 @@ export default function App() {
   }, [showFeedback]);
 
   const handleLogFavorite = useCallback((fav: import('./engine/hydrationEngine').FavoriteDrink) => {
+    feedbackAdd();
     setState((prev) => {
       const decayed = applyTimeDecay(prev);
       const overrides = { ...fav.overrides, label: fav.label, ...(fav.scanThumbnail ? { scanThumbnail: fav.scanThumbnail } : {}) };
@@ -379,6 +386,7 @@ export default function App() {
   }, [showFeedback]);
 
   const handleActivity = useCallback((result: ActivityResult) => {
+    feedbackAdd();
     setState((prev) => {
       const updated = applyActivity(prev, result);
       showFeedback(result.feedback);
