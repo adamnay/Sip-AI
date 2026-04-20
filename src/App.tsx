@@ -485,7 +485,7 @@ export default function App() {
             alt="Sip AI"
             style={{ height: 28, width: 'auto', display: 'block', filter: darkMode ? 'invert(1)' : 'none' }}
           />
-          {state.streak > 1 && (
+          {state.streak > 1 && !state.hangoverMode && (
             <div
               style={{
                 display: 'flex',
