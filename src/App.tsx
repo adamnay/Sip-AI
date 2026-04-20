@@ -51,7 +51,7 @@ import SciencePage from './pages/SciencePage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
-import { FlaskIcon, StarIcon } from './components/Icons';
+import { FlaskIcon, StarIcon, BeerIcon } from './components/Icons';
 
 type Page = 'home' | 'analytics' | 'settings' | 'science';
 const PAGE_ORDER: Page[] = ['home', 'analytics', 'settings'];
@@ -521,42 +521,48 @@ export default function App() {
             </div>
           )}
           {/* Recovery / Hangover button */}
+          {/* Hangover toggle — icon only when inactive, expands with label when active */}
           <button
             onClick={handleHangoverToggle}
             style={{
-              height: 32,
-              padding: '0 12px',
-              borderRadius: 10,
+              height: 36,
+              width: state.hangoverMode ? 'auto' : 36,
+              padding: state.hangoverMode ? '0 11px' : '0',
+              borderRadius: 12,
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 6,
               border: state.hangoverMode
                 ? '1px solid rgba(249,115,22,0.35)'
                 : darkMode ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.09)',
               background: state.hangoverMode
                 ? 'rgba(249,115,22,0.08)'
-                : darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                : darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
+              flexShrink: 0,
             }}
           >
             {state.hangoverMode && (
               <span style={{
                 width: 6, height: 6, borderRadius: '50%',
-                background: '#f97316',
-                flexShrink: 0,
+                background: '#f97316', flexShrink: 0,
                 animation: 'shimmer 1.8s ease infinite',
               }} />
             )}
-            <span style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: state.hangoverMode ? '#c2410c' : (darkMode ? 'rgba(255,255,255,0.38)' : 'rgba(0,0,0,0.38)'),
-              letterSpacing: '-0.01em',
-              whiteSpace: 'nowrap',
-            }}>
-              {state.hangoverMode ? 'Recovery' : 'Hangover?'}
-            </span>
+            <BeerIcon
+              size={17}
+              color={state.hangoverMode ? '#c2410c' : (darkMode ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.38)')}
+            />
+            {state.hangoverMode && (
+              <span style={{
+                fontSize: 12, fontWeight: 600, color: '#c2410c',
+                letterSpacing: '-0.01em', whiteSpace: 'nowrap',
+              }}>
+                Recovery
+              </span>
+            )}
           </button>
 
           {/* Science / menu */}
