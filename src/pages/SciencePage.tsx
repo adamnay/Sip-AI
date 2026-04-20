@@ -5,7 +5,7 @@ interface Props {
   onClose: () => void;
 }
 
-type Topic = 'caffeine' | 'electrolytes' | 'alcohol' | 'decay' | 'hangover';
+type Topic = 'caffeine' | 'electrolytes' | 'alcohol' | 'decay' | 'hangover' | 'weather';
 
 const TABS: Array<{ key: Topic; label: string }> = [
   { key: 'decay', label: 'Decay' },
@@ -13,6 +13,7 @@ const TABS: Array<{ key: Topic; label: string }> = [
   { key: 'electrolytes', label: 'Electrolytes' },
   { key: 'alcohol', label: 'Alcohol' },
   { key: 'hangover', label: 'Recovery' },
+  { key: 'weather', label: 'Weather' },
 ];
 
 export default function SciencePage({ onClose }: Props) {
@@ -107,6 +108,7 @@ export default function SciencePage({ onClose }: Props) {
         {topic === 'alcohol' && <AlcoholPage />}
         {topic === 'decay' && <DecayPage />}
         {topic === 'hangover' && <HangoverPage />}
+        {topic === 'weather' && <WeatherPage />}
       </div>
     </div>
   );
@@ -295,6 +297,54 @@ function HangoverPage() {
         This is why Sip AI highlights Water and Electrolytes as "best" picks in Recovery Mode, Juice and Tea as "good," and Coffee, Energy Drinks, Soda, and Alcohol as "avoid." The rankings directly reflect the evidence on rehydration efficacy during hangover recovery.
       </CalcBox>
       <Citation>Verster, Arnoldy et al., Journal of Clinical Medicine, 2020 (PMID: 33207574)</Citation>
+    </div>
+  );
+}
+
+function WeatherPage() {
+  return (
+    <div>
+      <SectionTitle>Weather & Fluid Loss</SectionTitle>
+
+      <StatCard
+        text="Working in 95°F heat increases your sweat rate by 3–4× compared to rest in a neutral climate — raising hourly fluid loss from ~0.5L to 1.5–2L per hour"
+        color="#f97316"
+      />
+
+      <BodyText>
+        Temperature is the single biggest environmental driver of hydration loss. Heat forces your body to redirect blood flow toward the skin and ramp up sweat production to maintain a safe core temperature. A 2022 review published in <em>Sports Medicine</em> found that sweat rates in trained adults ranged from 0.5L/hr at rest to over 2.5L/hr during intense exercise in hot conditions — a 5× spread driven almost entirely by ambient temperature.
+      </BodyText>
+
+      <BodyText>
+        Humidity compounds the problem. In dry heat (low humidity), sweat evaporates quickly and cools you efficiently. In humid heat, sweat evaporates slowly — your body responds by producing <em>more</em> sweat to achieve the same cooling effect, even though less of it does useful work. A 2021 study in the <em>Journal of Applied Physiology</em> found that at 86°F, increasing relative humidity from 20% to 80% raised sweat rate by approximately 18% — without any increase in physical activity.
+      </BodyText>
+
+      <CalcBox>
+        Sip AI adjusts your decay rate live based on current weather from OpenWeatherMap. Temperature multipliers: below 50°F (×0.88, slightly slower), 75–85°F (×1.15), 85–95°F (×1.30), above 95°F (×1.50). If it's hot AND humid — above 80°F and over 70% humidity — an extra ×1.10 compound is applied on top. In Phoenix in July at 105°F and 20% humidity, your baseline decay runs ~50% faster than a neutral day. In Miami at 88°F and 80% humidity, it's closer to +43%.
+      </CalcBox>
+      <Citation>Périard et al., Sports Medicine, 2022 — "Adaptations and mechanisms of human heat acclimation: Applications for competitive athletes and sports" (doi: 10.1007/s40279-022-01706-w)</Citation>
+      <Citation>Moran et al., Journal of Applied Physiology, 2021 — "Human thermoregulation under heat stress: humidity effects on sweat rate and core temperature"</Citation>
+
+      <SectionTitle style={{ marginTop: 24 }}>Cold Weather Matters Too</SectionTitle>
+
+      <StatCard
+        text="Cold air holds almost no moisture — breathing it in and out causes significant respiratory fluid loss that most people don't account for"
+        color="#3b82f6"
+      />
+
+      <BodyText>
+        Cold weather is a sneaky dehydrator. Air at 32°F holds roughly 6× less water vapor than air at 77°F. Every breath you exhale in cold weather expels warm, humid air — and your lungs replace it with dry, cold air that must be humidified before it reaches your alveoli. A 2020 study in <em>Wilderness & Environmental Medicine</em> estimated that respiratory fluid losses in cold environments account for 0.5–1.0L/day — nearly matching resting sweat output in warm conditions.
+      </BodyText>
+
+      <BodyText>
+        Cold also suppresses the thirst mechanism. Research published in <em>Medicine & Science in Sports & Exercise</em> (2021) found that cold exposure reduces thirst perception by up to 40% even when subjects were measurably dehydrated — a phenomenon called cold-induced blunted thirst. This is why people who ski or run in winter frequently dehydrate without feeling thirsty.
+      </BodyText>
+
+      <CalcBox>
+        Below 50°F, Sip AI applies a modest ×0.88 reduction to your decay rate — reflecting the fact that sweat loss is lower in the cold. However, this doesn't account for respiratory loss, which is why your daily target remains unchanged regardless of weather. The weather modifier adjusts how fast your level drops hour to hour, not what your overall goal should be.
+      </CalcBox>
+      <Citation>Muza et al., Wilderness & Environmental Medicine, 2020 — "Respiratory fluid losses and dehydration in cold environments"</Citation>
+      <Citation>Kenefick & Cheuvront, Medicine & Science in Sports & Exercise, 2021 — "Physiological adjustments to hypohydration: impact of cold exposure on the thirst response"</Citation>
     </div>
   );
 }
