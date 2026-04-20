@@ -238,8 +238,13 @@ export function loadAndMigrateState(raw: string): HydrationState {
   return migrateState(parsed);
 }
 
+export interface WeatherContext {
+  tempF: number;
+  humidity: number; // 0–100
+}
+
 /** Apply passive time-based decay to hydration level */
-export function applyTimeDecay(state: HydrationState): HydrationState {
+export function applyTimeDecay(state: HydrationState, weather?: WeatherContext): HydrationState {
   const now = Date.now();
   const hoursElapsed = (now - state.lastUpdate) / 3_600_000;
 
@@ -276,6 +281,17 @@ export function applyTimeDecay(state: HydrationState): HydrationState {
       // After 6 hours, clear alcohol decay
       alcoholDecayActive = false;
     }
+  }
+
+  // Weather modifier — hot/humid conditions increase fluid loss
+  if (weather) {
+    const { tempF, humidity } = weather;
+    if      (tempF > 95) decayRatePerHour *= 1.50;
+    else if (tempF > 85) decayRatePerHour *= 1.30;
+    else if (tempF > 75) decayRatePerHour *= 1.15;
+    else if (tempF < 50) decayRatePerHour *= 0.88;
+    // Hot + humid: sweat doesn't evaporate → extra fluid turnover
+    if (tempF > 80 && humidity > 70) decayRatePerHour *= 1.10;
   }
 
   // Hangover mode: multiply decay rate by 1.5

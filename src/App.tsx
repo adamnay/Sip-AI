@@ -33,6 +33,9 @@ import {
 import type { NotificationPrefs } from './utils/notifications';
 import { generateNotificationMessage } from './api/notificationWriter';
 import { feedbackAdd, feedbackRemove } from './utils/feedback';
+import { fetchWeather, getLocation } from './api/weatherService';
+import type { WeatherData } from './api/weatherService';
+import type { WeatherContext } from './engine/hydrationEngine';
 import type { NotifContext } from './api/notificationWriter';
 import HydrationRing from './components/HydrationRing';
 import FeedbackCard from './components/FeedbackCard';
@@ -104,6 +107,8 @@ export default function App() {
   });
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(() => loadNotifPrefs());
   const notifPrefsRef = useRef(notifPrefs);
+  const weatherRef = useRef<WeatherContext | null>(null);
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
 
   // Auth init
   useEffect(() => {
@@ -144,7 +149,7 @@ export default function App() {
   useEffect(() => {
     decayIntervalRef.current = setInterval(() => {
       setState((prev) => {
-        const updated = applyTimeDecay(prev);
+        const updated = applyTimeDecay(prev, weatherRef.current ?? undefined);
         saveState(updated);
         return updated;
       });
@@ -158,7 +163,7 @@ export default function App() {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         setState((prev) => {
-          const updated = applyTimeDecay(prev);
+          const updated = applyTimeDecay(prev, weatherRef.current ?? undefined);
           saveState(updated);
           return updated;
         });
@@ -166,6 +171,22 @@ export default function App() {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
+  // Fetch weather on mount + refresh every 30 minutes
+  useEffect(() => {
+    const doFetch = () => {
+      getLocation()
+        .then(({ lat, lon }) => fetchWeather(lat, lon))
+        .then(data => {
+          weatherRef.current = { tempF: data.tempF, humidity: data.humidity };
+          setWeatherData(data);
+        })
+        .catch(() => { /* location denied or network error — graceful no-op */ });
+    };
+    doFetch();
+    const id = setInterval(doFetch, 30 * 60 * 1000);
+    return () => clearInterval(id);
   }, []);
 
   // Keep notifPrefsRef in sync
@@ -485,6 +506,20 @@ export default function App() {
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Weather badge */}
+          {weatherData && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              height: 32, padding: '0 10px', borderRadius: 10,
+              border: darkMode ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.09)',
+              background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+            }}>
+              <span style={{ fontSize: 13, lineHeight: 1 }}>{weatherData.icon}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: darkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)', letterSpacing: '-0.01em' }}>
+                {weatherData.tempF}°F
+              </span>
+            </div>
+          )}
           {/* Recovery / Hangover button */}
           <button
             onClick={handleHangoverToggle}
