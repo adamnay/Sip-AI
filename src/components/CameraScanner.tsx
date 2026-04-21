@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { detectDrinkPresence } from '../api/drinkAnalyzer';
 
 // ── Stability tuning ──────────────────────────────────────────────────────────
 const SAMPLE_PX     = 32;   // side of the center crop used for frame comparison
-const STABLE_DIFF   = 18;   // mean per-channel pixel diff below which = stable (higher = more tolerant of hand tremor)
-const FRAMES_NEEDED = 8;    // consecutive stable frames before auto-capture (~0.8 s)
+const STABLE_DIFF   = 7;    // mean per-channel pixel diff below which = stable
+const FRAMES_NEEDED = 14;   // consecutive stable frames before auto-capture (~1.4 s)
 
 interface Props {
   onCapture: (base64: string) => void;
@@ -21,12 +22,16 @@ export default function CameraScanner({ onCapture, onClose }: Props) {
   const onCaptureRef = useRef(onCapture);
   useEffect(() => { onCaptureRef.current = onCapture; });
 
-  const prevFrameRef  = useRef<Uint8ClampedArray | null>(null);
-  const stableRef     = useRef(0);
-  const didCaptureRef = useRef(false);
+  const prevFrameRef      = useRef<Uint8ClampedArray | null>(null);
+  const stableRef         = useRef(0);
+  const didCaptureRef     = useRef(false);
+  const drinkDetectedRef  = useRef(false);
+  const detectionBusyRef  = useRef(false);
+  const frameCountRef     = useRef(0);
 
-  const [phase,    setPhase]    = useState<Phase>('init');
-  const [progress, setProgress] = useState(0); // 0–100
+  const [phase,         setPhase]         = useState<Phase>('init');
+  const [progress,      setProgress]      = useState(0);      // 0–100
+  const [drinkDetected, setDrinkDetected] = useState(false);
 
   // ── Core: camera boot + stability interval ──────────────────────────────────
   useEffect(() => {
@@ -78,10 +83,12 @@ export default function CameraScanner({ onCapture, onClose }: Props) {
             const canvas = analysisRef.current;
             if (!canvas || !video || video.readyState < 2) return;
 
+            frameCountRef.current++;
+
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             if (!ctx) return;
 
-            // Centre-crop into tiny canvas
+            // Centre-crop into tiny canvas for stability check
             const vw = video.videoWidth  || 1;
             const vh = video.videoHeight || 1;
             ctx.drawImage(
@@ -92,6 +99,27 @@ export default function CameraScanner({ onCapture, onClose }: Props) {
               0, 0, SAMPLE_PX, SAMPLE_PX,
             );
             const { data } = ctx.getImageData(0, 0, SAMPLE_PX, SAMPLE_PX);
+
+            // ── Periodic drink-presence detection (frame 8, then every 25 frames) ──
+            const fc = frameCountRef.current;
+            if (!detectionBusyRef.current && (fc === 8 || (fc > 8 && (fc - 8) % 25 === 0))) {
+              detectionBusyRef.current = true;
+              const detCanvas = document.createElement('canvas');
+              detCanvas.width  = 128;
+              detCanvas.height = 128;
+              const detCtx = detCanvas.getContext('2d');
+              if (detCtx) {
+                detCtx.drawImage(video, 0, 0, 128, 128);
+                const b64 = detCanvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+                detectDrinkPresence(b64).then(found => {
+                  drinkDetectedRef.current = found;
+                  if (mounted) setDrinkDetected(found);
+                  detectionBusyRef.current = false;
+                }).catch(() => { detectionBusyRef.current = false; });
+              } else {
+                detectionBusyRef.current = false;
+              }
+            }
 
             if (prevFrameRef.current) {
               let sum = 0;
@@ -105,13 +133,14 @@ export default function CameraScanner({ onCapture, onClose }: Props) {
               if (avg < STABLE_DIFF) {
                 stableRef.current = Math.min(stableRef.current + 1, FRAMES_NEEDED);
               } else {
-                stableRef.current = Math.max(0, stableRef.current - 1);
+                stableRef.current = Math.max(0, stableRef.current - 2);
               }
 
               const pct = (stableRef.current / FRAMES_NEEDED) * 100;
               if (mounted) setProgress(pct);
 
-              if (stableRef.current >= FRAMES_NEEDED) grab();
+              // Only auto-capture once a drink has been confirmed present
+              if (stableRef.current >= FRAMES_NEEDED && drinkDetectedRef.current) grab();
             }
 
             prevFrameRef.current = new Uint8ClampedArray(data);
@@ -208,7 +237,7 @@ export default function CameraScanner({ onCapture, onClose }: Props) {
         }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.92)', letterSpacing: '-0.01em' }}>
             {phase === 'init'  && 'Starting camera…'}
-            {phase === 'ready' && (progress > 30 ? 'Hold still…' : 'Point at your drink')}
+            {phase === 'ready' && (drinkDetected ? (progress > 30 ? 'Hold still…' : 'Drink detected!') : 'Point at your drink')}
             {phase === 'flash' && '✓ Got it!'}
             {phase === 'error' && 'Camera unavailable'}
           </span>
@@ -295,7 +324,7 @@ export default function CameraScanner({ onCapture, onClose }: Props) {
                 color: locked ? 'rgba(6,182,212,0.85)' : 'rgba(255,255,255,0.48)',
                 transition: 'color 0.3s ease',
               }}>
-                {locked ? 'Locked on — capturing…' : 'Hold still to auto-capture'}
+                {locked ? 'Locked on — capturing…' : drinkDetected ? 'Hold still to auto-capture' : 'Scanning for drink…'}
               </p>
             </div>
 
