@@ -205,32 +205,109 @@ function migrateState(state: Partial<HydrationState>): HydrationState {
   };
 }
 
-/** Compute daily target oz from questionnaire answers */
+/**
+ * Compute daily hydration target in oz from comprehensive questionnaire answers.
+ * Factors in 12+ variables: weight, gender, age, activity, exercise type,
+ * work environment, climate, altitude, indoor environment, caffeine, alcohol,
+ * diet, health conditions, and medications.
+ */
 export function computeDailyTargetFromAnswers(
   answers: Record<string, string>,
   weightLbs: number
 ): number {
-  let target = weightLbs * 0.55;
+  // Base: 0.50 oz per lb (National Academies of Medicine baseline)
+  let target = weightLbs * 0.50;
 
+  // ── Gender ──────────────────────────────────────────────────────────────
+  // Men have more muscle mass (holds more water) and higher metabolic rate
+  if (answers.gender === 'Male') target *= 1.10;
+
+  // ── Age ─────────────────────────────────────────────────────────────────
+  const age = parseInt(answers.ageTotalYears || '30');
+  if (age >= 65) target += 10;       // kidneys less efficient, thirst blunted
+  else if (age >= 50) target += 6;
+  else if (age >= 40) target += 3;
+  else if (age <= 18) target -= 3;   // smaller body, retain water well
+
+  // ── Activity level ───────────────────────────────────────────────────────
   const activityMods: Record<string, number> = {
-    'Mostly sedentary': 0.88,
-    'Light exercise': 0.95,
-    'Moderately active': 1.05,
-    'Very active': 1.18,
-    'Athlete level': 1.30,
+    'Mostly sedentary':                  0.90,
+    'Light exercise 1–2×/week':          0.97,
+    'Moderate exercise 3–4×/week':       1.08,
+    'Very active 5+×/week':              1.22,
+    'Athlete / daily intense training':  1.38,
   };
   target *= (activityMods[answers.activityLevel] ?? 1.0);
 
-  if (answers.goal === 'Athletic performance') target *= 1.08;
-  else if (answers.goal === 'Skin & glow') target *= 1.05;
+  // ── Exercise type (adds on top of activity multiplier) ───────────────────
+  if (answers.exerciseType === 'Running / cycling')          target += 10;
+  else if (answers.exerciseType === 'Team sports / HIIT')    target += 8;
+  else if (answers.exerciseType === 'Gym / weight training') target += 5;
+  else if (answers.exerciseType === 'Yoga / pilates / stretching') target += 2;
 
-  if (answers.caffeine === '4+ cups/day') target += 10;
-  else if (answers.caffeine === '2–3 cups/day') target += 5;
+  // ── Work environment ─────────────────────────────────────────────────────
+  if (answers.workEnv === 'Outdoor or physical labor')       target += 14;
+  else if (answers.workEnv === 'Standing / retail / service') target += 6;
+  else if (answers.workEnv === 'Mix of indoor and outdoor')  target += 4;
 
-  if (answers.alcohol === 'Daily') target += 10;
-  else if (answers.alcohol === 'A few times/week') target += 5;
+  // ── Climate ──────────────────────────────────────────────────────────────
+  const climateMods: Record<string, number> = {
+    'Hot & dry (desert)':      1.22,
+    'Hot & humid (tropical)':  1.28,
+    'Temperate / mild':        1.00,
+    'Cold / northern':         0.92,
+    'Varies by season':        1.03,
+  };
+  target *= (climateMods[answers.climate] ?? 1.0);
 
-  return Math.round(Math.max(48, Math.min(220, target)));
+  // ── Indoor environment (AC/heating dry out air) ──────────────────────────
+  if (answers.indoorEnv === 'Air-conditioned office or home') target += 5;
+  else if (answers.indoorEnv === 'Heated indoor space')        target += 4;
+
+  // ── Altitude ─────────────────────────────────────────────────────────────
+  if (answers.altitude === 'Very high (8,000+ ft)')           target += 14;
+  else if (answers.altitude === 'High (5,000–8,000 ft)')      target += 9;
+  else if (answers.altitude === 'Moderate (1,000–4,999 ft)')  target += 4;
+
+  // ── Goal modifier ────────────────────────────────────────────────────────
+  if (answers.goal === 'Athletic performance')   target *= 1.08;
+  else if (answers.goal === 'Skin health & glow') target *= 1.06;
+  else if (answers.goal === 'Weight management')  target *= 1.04;
+
+  // ── Caffeine (diuretic above 80mg) ───────────────────────────────────────
+  if (answers.caffeine === '4+ cups / day')      target += 16;
+  else if (answers.caffeine === '2–3 cups / day') target += 9;
+  else if (answers.caffeine === '1 cup / day')    target += 4;
+
+  // ── Alcohol (ADH suppression) ────────────────────────────────────────────
+  if (answers.alcohol === 'Daily')                target += 16;
+  else if (answers.alcohol === 'A few times / week') target += 9;
+  else if (answers.alcohol === 'Weekends')         target += 4;
+
+  // ── Diet ─────────────────────────────────────────────────────────────────
+  // High protein requires extra water for nitrogen metabolism
+  if (answers.diet === 'High protein / low carb') target += 10;
+  else if (answers.diet === 'Mostly processed / fast food') target += 6; // high sodium
+  // Fruits & veg contribute ~500ml/day of food water
+  else if (answers.diet === 'Lots of fruits & vegetables') target -= 7;
+  else if (answers.diet === 'Vegan / plant-based')          target -= 4;
+
+  // ── Sleep (less sleep = less overnight recovery) ─────────────────────────
+  if (answers.sleepHours === 'Less than 6 hours') target += 7;
+  else if (answers.sleepHours === '6–7 hours')     target += 3;
+
+  // ── Health conditions ────────────────────────────────────────────────────
+  if (answers.healthCondition === 'Pregnant')         target += 10;
+  else if (answers.healthCondition === 'Breastfeeding') target += 13;
+  else if (answers.healthCondition === 'Type 1 or 2 diabetes') target += 9;
+  else if (answers.healthCondition === 'Kidney condition') target += 6;
+
+  // ── Diuretic medications ─────────────────────────────────────────────────
+  if (answers.diuretics === 'Yes, strong (e.g. furosemide)') target += 18;
+  else if (answers.diuretics === 'Yes, mild (e.g. low-dose HCTZ)') target += 9;
+  else if (answers.diuretics === 'Not sure') target += 5;
+
+  return Math.round(Math.max(48, Math.min(250, target)));
 }
 
 export function loadAndMigrateState(raw: string): HydrationState {
