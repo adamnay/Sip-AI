@@ -587,7 +587,7 @@ export default function SettingsPage({ profile, onSave, darkMode, onToggleDark, 
             borderRadius: '24px 24px 0 0',
             zIndex: 110,
             padding: '24px 20px',
-            paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+            paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))',
             boxShadow: '0 -4px 32px rgba(0,0,0,0.2)',
             animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1) forwards',
           }}>
