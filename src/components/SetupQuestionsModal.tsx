@@ -185,6 +185,13 @@ const QUESTIONS: Question[] = [
     icon: 'clock',
     options: ['Before 6:00 AM', '6:00–7:30 AM', '7:30–9:00 AM', 'After 9:00 AM'],
   },
+  {
+    id: 'referralSource', type: 'choice',
+    question: 'Where did you hear about us?',
+    sub: 'Helps us reach more people looking to improve their health.',
+    icon: 'megaphone',
+    options: ['App Store / Play Store', 'Instagram or TikTok', 'Friend or family', 'Google search', 'Reddit', 'Other'],
+  },
 ];
 
 const REAL_QUESTIONS = QUESTIONS.filter(q => q.type !== 'interstitial');
@@ -212,6 +219,7 @@ function QuestionIcon({ icon, color }: { icon: string; color: string }) {
   if (icon === 'flag') return <svg {...p}><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>;
   if (icon === 'clock') return <svg {...p}><circle cx="12" cy="12" r="9" /><polyline points="12,7 12,12 15,15" /></svg>;
   if (icon === 'brain') return <svg {...p}><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z" /><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z" /></svg>;
+  if (icon === 'megaphone') return <svg {...p}><path d="M3 11l18-5v12L3 13v-2z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></svg>;
   return null;
 }
 
