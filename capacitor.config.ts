@@ -4,6 +4,11 @@ const config: CapacitorConfig = {
   appId: 'com.sipai.app',
   appName: 'Sip AI',
   webDir: 'dist',
+  // Set WebView background to black so no white flash before CSS loads
+  backgroundColor: '#000000',
+  ios: {
+    backgroundColor: '#000000',
+  },
   server: {
     // Remove this block before production — dev only for hot reload
     // androidScheme: 'https',
