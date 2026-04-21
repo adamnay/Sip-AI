@@ -76,7 +76,7 @@ const QUESTIONS: Question[] = [
     question: 'How active is your lifestyle?',
     sub: 'Active muscles demand significantly more water to function.',
     icon: 'activity',
-    options: ['Mostly sedentary', 'Light exercise 1–2×/week', 'Moderate exercise 3–4×/week', 'Very active 5+×/week', 'Athlete / daily intense training'],
+    options: ['Couch Potato', 'Light exercise 1–2×/week', 'Moderate exercise 3–4×/week', 'Very active 5+×/week', 'Athlete / daily intense training'],
   },
   {
     id: 'exerciseType', type: 'choice',

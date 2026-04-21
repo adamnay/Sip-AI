@@ -231,7 +231,7 @@ export function computeDailyTargetFromAnswers(
 
   // ── Activity level ───────────────────────────────────────────────────────
   const activityMods: Record<string, number> = {
-    'Mostly sedentary':                  0.90,
+    'Couch Potato':                       0.90,
     'Light exercise 1–2×/week':          0.97,
     'Moderate exercise 3–4×/week':       1.08,
     'Very active 5+×/week':              1.22,

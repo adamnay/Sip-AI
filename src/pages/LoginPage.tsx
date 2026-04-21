@@ -43,7 +43,7 @@ const QUESTIONS: Question[] = [
     question: 'How active is your lifestyle?',
     sub: 'This affects how fast your body loses water.',
     icon: 'activity',
-    options: ['Mostly sedentary', 'Light exercise', 'Moderately active', 'Very active', 'Athlete level'],
+    options: ['Couch Potato', 'Light exercise', 'Moderately active', 'Very active', 'Athlete level'],
   },
   {
     id: 'caffeine', type: 'choice',
