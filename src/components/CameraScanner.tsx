@@ -201,10 +201,10 @@ export default function CameraScanner({ onCapture, onClose }: Props) {
         }} />
       )}
 
-      {/* ── Radial vignette ────────────────────────────────────────────────── */}
+      {/* ── Radial vignette (very subtle — keeps edges dark without washing out centre) */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 80% 65% at 50% 44%, transparent 30%, rgba(0,0,0,0.62) 100%)',
+        background: 'radial-gradient(ellipse 85% 70% at 50% 44%, transparent 55%, rgba(0,0,0,0.28) 100%)',
       }} />
 
       {/* ── Close button ───────────────────────────────────────────────────── */}
