@@ -131,6 +131,18 @@ body {
   100% { transform: translate(0, 0)    scale(1);    }
 }
 
+/* ── Questionnaire slide transitions ──────────────────────────── */
+@keyframes qFromRight {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes qFromLeft {
+  from { opacity: 0; transform: translateX(-32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.q-from-right { animation: qFromRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.q-from-left  { animation: qFromLeft  0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
 @keyframes ring-flash {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.15; }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTheme, getTheme } from '../context/ThemeContext';
 import { WaterIcon, CoffeeIcon, XIcon } from './Icons';
 import type { UserProfile } from '../engine/hydrationEngine';
@@ -235,6 +235,8 @@ export default function SetupQuestionsModal({ initialAnswers, onComplete, onClos
   const [qIndex, setQIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers ?? {});
   const [sliderValue, setSliderValue] = useState(66);
+  const [animKey, setAnimKey] = useState(0);
+  const animDirRef = useRef<'forward' | 'back'>('forward');
 
   const q = QUESTIONS[qIndex];
   const realQuestionsDone = QUESTIONS.slice(0, qIndex).filter(x => x.type !== 'interstitial').length;
@@ -248,12 +250,12 @@ export default function SetupQuestionsModal({ initialAnswers, onComplete, onClos
     }
   }, [qIndex]);
 
-  const iconColor = isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.6)';
+  const iconColor = isDark ? 'rgba(255,255,255,0.75)' : '#0891b2';
 
   const trackFill = (val: number, min: number, max: number) => {
     const pct = ((val - min) / (max - min)) * 100;
-    const filled = isDark ? 'rgba(255,255,255,0.9)' : '#111827';
-    const empty = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)';
+    const filled = isDark ? 'rgba(255,255,255,0.9)' : '#06b6d4';
+    const empty = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.09)';
     return `linear-gradient(to right, ${filled} 0%, ${filled} ${pct}%, ${empty} ${pct}%, ${empty} 100%)`;
   };
 
@@ -262,6 +264,8 @@ export default function SetupQuestionsModal({ initialAnswers, onComplete, onClos
     if (answer !== undefined) setAnswers(updated);
 
     if (qIndex < QUESTIONS.length - 1) {
+      animDirRef.current = 'forward';
+      setAnimKey(k => k + 1);
       setQIndex(i => i + 1);
     } else {
       const profile: Partial<UserProfile> = {};
@@ -275,14 +279,19 @@ export default function SetupQuestionsModal({ initialAnswers, onComplete, onClos
 
   const handleBack = () => {
     if (qIndex === 0) { onClose(); return; }
+    animDirRef.current = 'back';
+    setAnimKey(k => k + 1);
     setQIndex(i => i - 1);
   };
 
   const btnStyle: React.CSSProperties = {
-    width: '100%', background: theme.textPrimary,
-    color: isDark ? '#0f1117' : '#ffffff', border: 'none', borderRadius: 16,
+    width: '100%',
+    background: isDark ? theme.textPrimary : 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)',
+    color: isDark ? '#0f1117' : '#ffffff',
+    border: 'none', borderRadius: 16,
     padding: '16px', fontSize: 15, fontWeight: 700, cursor: 'pointer',
     fontFamily: 'inherit', letterSpacing: '-0.01em',
+    boxShadow: isDark ? 'none' : '0 4px 18px rgba(6,182,212,0.28)',
   };
 
   return (
@@ -304,19 +313,35 @@ export default function SetupQuestionsModal({ initialAnswers, onComplete, onClos
       {/* Progress — only for real questions */}
       {q.type !== 'interstitial' && (
         <div style={{ padding: '14px 20px 0' }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: theme.textTertiary, letterSpacing: '0.07em', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
-            Question {realQuestionsDone + 1} of {totalReal}
-          </span>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {REAL_QUESTIONS.map((_, i) => (
-              <div key={i} style={{ flex: 1, height: 3, borderRadius: 3, background: i <= realQuestionsDone ? theme.textPrimary : theme.divider, transition: 'background 0.3s ease' }} />
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: '#0891b2', background: 'rgba(6,182,212,0.1)',
+              padding: '3px 9px', borderRadius: 20,
+            }}>
+              {realQuestionsDone + 1} of {totalReal}
+            </span>
+            <span style={{ fontSize: 11, color: theme.textTertiary, fontWeight: 500 }}>
+              {Math.round(((realQuestionsDone + 1) / totalReal) * 100)}%
+            </span>
+          </div>
+          <div style={{ height: 4, borderRadius: 4, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', borderRadius: 4,
+              width: `${((realQuestionsDone + 1) / totalReal) * 100}%`,
+              background: 'linear-gradient(90deg, #06b6d4, #0891b2)',
+              transition: 'width 0.4s cubic-bezier(0.16,1,0.3,1)',
+            }} />
           </div>
         </div>
       )}
 
-      {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '28px 20px 48px' }}>
+      {/* Content — slides in on each question change */}
+      <div
+        key={animKey}
+        className={animDirRef.current === 'forward' ? 'q-from-right' : 'q-from-left'}
+        style={{ flex: 1, overflowY: 'auto', padding: '28px 20px 48px' }}
+      >
 
         {/* ── Interstitial ─────────────────────────────────────────────── */}
         {q.type === 'interstitial' && (
@@ -339,7 +364,7 @@ export default function SetupQuestionsModal({ initialAnswers, onComplete, onClos
         {q.type === 'choice' && (
           <>
             <div style={{ marginBottom: 28 }}>
-              <div style={{ width: 60, height: 60, borderRadius: 18, background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <div style={{ width: 60, height: 60, borderRadius: 18, background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(6,182,212,0.09)', border: `1px solid ${isDark ? 'transparent' : 'rgba(6,182,212,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
                 <QuestionIcon icon={q.icon} color={iconColor} />
               </div>
               <h2 style={{ fontSize: 24, fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.03em', margin: '0 0 8px', lineHeight: 1.2 }}>{q.question}</h2>
@@ -349,9 +374,26 @@ export default function SetupQuestionsModal({ initialAnswers, onComplete, onClos
               {q.options.map(option => {
                 const isSelected = answers[q.id] === option;
                 return (
-                  <button key={option} onClick={() => advance(option)} style={{ width: '100%', padding: '15px 18px', borderRadius: 16, border: isSelected ? `1.5px solid ${theme.textPrimary}` : `1px solid ${theme.cardBorder}`, background: isSelected ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)') : theme.card, color: theme.textPrimary, fontSize: 15, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.12s ease' }}>
+                  <button key={option} onClick={() => advance(option)} style={{
+                    width: '100%', padding: '15px 18px', borderRadius: 16,
+                    border: isSelected
+                      ? '1.5px solid #06b6d4'
+                      : `1px solid ${theme.cardBorder}`,
+                    background: isSelected
+                      ? (isDark ? 'rgba(6,182,212,0.12)' : 'rgba(6,182,212,0.07)')
+                      : theme.card,
+                    color: theme.textPrimary,
+                    fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    fontFamily: 'inherit', textAlign: 'left',
+                    transition: 'all 0.15s ease',
+                    boxShadow: isSelected ? '0 2px 12px rgba(6,182,212,0.15)' : 'none',
+                  }}>
                     <span>{option}</span>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={theme.textTertiary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                    {isSelected
+                      ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                      : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={theme.textTertiary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                    }
                   </button>
                 );
               })}
@@ -363,22 +405,22 @@ export default function SetupQuestionsModal({ initialAnswers, onComplete, onClos
         {(q.type === 'slider_age' || q.type === 'slider_height' || q.type === 'slider_weight') && (
           <>
             <div style={{ marginBottom: 28 }}>
-              <div style={{ width: 60, height: 60, borderRadius: 18, background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <div style={{ width: 60, height: 60, borderRadius: 18, background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(6,182,212,0.09)', border: `1px solid ${isDark ? 'transparent' : 'rgba(6,182,212,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
                 <QuestionIcon icon={q.icon} color={iconColor} />
               </div>
               <h2 style={{ fontSize: 24, fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.03em', margin: '0 0 8px', lineHeight: 1.2 }}>{q.question}</h2>
               <p style={{ fontSize: 13, color: theme.textSecondary, margin: 0, lineHeight: 1.55 }}>{q.sub}</p>
             </div>
 
-            <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <div style={{ textAlign: 'center', marginBottom: 28, padding: '20px 0 8px' }}>
               {q.type === 'slider_age' && (
-                <><span style={{ fontSize: 64, fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.04em', lineHeight: 1 }}>{Math.round(sliderValue)}</span><span style={{ fontSize: 24, fontWeight: 600, color: theme.textSecondary, marginLeft: 8 }}>yrs</span></>
+                <><span style={{ fontSize: 72, fontWeight: 900, color: isDark ? theme.textPrimary : '#0891b2', letterSpacing: '-0.04em', lineHeight: 1 }}>{Math.round(sliderValue)}</span><span style={{ fontSize: 24, fontWeight: 600, color: theme.textSecondary, marginLeft: 8 }}>yrs</span></>
               )}
               {q.type === 'slider_height' && (
-                <><span style={{ fontSize: 64, fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.04em', lineHeight: 1 }}>{Math.floor(Math.round(sliderValue) / 12)}</span><span style={{ fontSize: 24, fontWeight: 600, color: theme.textSecondary, marginLeft: 4 }}>ft</span><span style={{ fontSize: 64, fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.04em', lineHeight: 1, marginLeft: 14 }}>{Math.round(sliderValue) % 12}</span><span style={{ fontSize: 24, fontWeight: 600, color: theme.textSecondary, marginLeft: 4 }}>in</span></>
+                <><span style={{ fontSize: 72, fontWeight: 900, color: isDark ? theme.textPrimary : '#0891b2', letterSpacing: '-0.04em', lineHeight: 1 }}>{Math.floor(Math.round(sliderValue) / 12)}</span><span style={{ fontSize: 24, fontWeight: 600, color: theme.textSecondary, marginLeft: 4 }}>ft</span><span style={{ fontSize: 72, fontWeight: 900, color: isDark ? theme.textPrimary : '#0891b2', letterSpacing: '-0.04em', lineHeight: 1, marginLeft: 14 }}>{Math.round(sliderValue) % 12}</span><span style={{ fontSize: 24, fontWeight: 600, color: theme.textSecondary, marginLeft: 4 }}>in</span></>
               )}
               {q.type === 'slider_weight' && (
-                <><span style={{ fontSize: 64, fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.04em', lineHeight: 1 }}>{Math.round(sliderValue)}</span><span style={{ fontSize: 24, fontWeight: 600, color: theme.textSecondary, marginLeft: 8 }}>lbs</span></>
+                <><span style={{ fontSize: 72, fontWeight: 900, color: isDark ? theme.textPrimary : '#0891b2', letterSpacing: '-0.04em', lineHeight: 1 }}>{Math.round(sliderValue)}</span><span style={{ fontSize: 24, fontWeight: 600, color: theme.textSecondary, marginLeft: 8 }}>lbs</span></>
               )}
             </div>
 
