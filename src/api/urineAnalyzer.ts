@@ -1,58 +1,70 @@
 // Deterministic urine-color calibration — no AI, no unreliable sign flips.
 //
-// Each color maps to a scientifically grounded "true hydration %" target.
-// For DARK colors (dark yellow → brown) we only allow DOWNWARD correction:
-//   if the app already shows a level ≤ the target, we do nothing (0).
-//   This ensures selecting "dark yellow" can never add hydration.
-// For LIGHT colors (yellow and paler) we allow both directions — you may
-//   have drunk water the app hasn't tracked.
+// Targets are grounded in Armstrong et al. (1994) urine color scale and
+// ACSM/NATA hydration guidelines, mapped to the app's 0–100% scale:
+//
+//   Clear       → urine osmolality < 200 mOsm/kg  → over-hydrated
+//   Pale straw  → 200–400 mOsm/kg                 → optimal (ACSM ideal)
+//   Yellow      → 400–600 mOsm/kg                 → adequate (not ideal)
+//   Dark yellow → 600–800 mOsm/kg                 → mild dehydration (~1–2% BW loss)
+//   Amber       → 800–1000 mOsm/kg                → moderate dehydration (~3–4% BW loss)
+//   Orange      → > 1000 mOsm/kg                  → significant dehydration (>5% BW loss)
+//   Brown       → extreme concentration / medical  → severe dehydration
+//
+// Rules:
+//   • Dark colors (dark yellow → brown) can only LOWER the level, never raise it.
+//   • Maximum swing in either direction: ±30 percentage points.
+//     Urine color is a coarse signal — it shouldn't override days of tracking data.
 
 export interface UrineAnalysisResult {
-  adjustment: number;   // delta applied to current level (clamped)
+  adjustment: number;   // delta applied to current level (capped ±30)
   newLevel: number;     // resulting level after calibration
   feedback: string;     // 1–2 sentences, actionable
 }
 
 interface ColorConfig {
-  target: number;
+  target: number;  // true hydration % this color maps to
   feedback: string;
-  dark: boolean; // true = only allow downward correction
+  dark: boolean;   // true = only allow downward correction
 }
+
+// Maximum swing in either direction (percentage points)
+const MAX_SWING = 30;
 
 const COLOR_CALIBRATION: Record<string, ColorConfig> = {
   'Clear': {
-    target: 95,
-    feedback: 'You may be slightly over-hydrated — your fluid intake is excellent. Ease off water for now and let your kidneys catch up.',
+    target: 88,
+    feedback: 'You may be over-hydrating. Your kidneys are working hard to dilute excess fluid — ease off water for now.',
     dark: false,
   },
   'Pale straw': {
-    target: 82,
-    feedback: 'Perfect hydration — you\'re hitting the sweet spot. Keep sipping throughout the day to stay here.',
+    target: 75,
+    feedback: 'Excellent hydration — this is the ACSM\'s ideal urine color. Keep sipping to stay here.',
     dark: false,
   },
   'Yellow': {
-    target: 68,
-    feedback: 'Good hydration. You\'re in a healthy range. Keep drinking water steadily through the day.',
+    target: 58,
+    feedback: 'Adequately hydrated, but there\'s room to improve. Aim for another glass of water in the next hour.',
     dark: false,
   },
   'Dark yellow': {
-    target: 50,
-    feedback: 'Your body needs more fluids. Aim to drink 16–20 oz of water in the next 30 minutes.',
+    target: 40,
+    feedback: 'Mild dehydration — about 1–2% body weight in fluid deficit. Drink 12–16 oz of water now.',
     dark: true,
   },
   'Amber': {
-    target: 35,
-    feedback: 'You\'re noticeably dehydrated. Drink 24–32 oz of water now and avoid caffeine and alcohol until your color improves.',
+    target: 25,
+    feedback: 'Moderate dehydration (~3–4% fluid deficit). Drink 20–28 oz of water and avoid caffeine until it clears.',
     dark: true,
   },
   'Orange': {
-    target: 18,
-    feedback: 'Significantly dehydrated. Drink water steadily — about 8 oz every 15 minutes. Adding an electrolyte drink will help.',
+    target: 12,
+    feedback: 'Significant dehydration (>5% fluid deficit). Sip 6–8 oz every 15 minutes and consider an electrolyte drink.',
     dark: true,
   },
   'Brown': {
-    target: 7,
-    feedback: '⚠️ Severely dehydrated. Drink water immediately. If you feel dizzy, lightheaded, or confused, seek medical attention.',
+    target: 4,
+    feedback: '⚠️ Severe dehydration. Drink water immediately and seek medical attention if you feel dizzy or confused.',
     dark: true,
   },
 };
@@ -64,19 +76,21 @@ export async function analyzeUrineColor(
   const config = COLOR_CALIBRATION[colorLabel];
 
   if (!config) {
-    // Unknown label — no change
     return { adjustment: 0, newLevel: currentLevel, feedback: 'Keep tracking your hydration.' };
   }
 
   let delta = config.target - currentLevel;
 
-  // Dark colors: never increase the level (that would be misleading)
+  // Dark colors: never increase the level (you picked dark yellow — that's a dehydration signal)
   if (config.dark && delta > 0) {
     delta = 0;
   }
 
+  // Cap the swing — urine color is a coarse signal, not a precise override
+  delta = Math.max(-MAX_SWING, Math.min(MAX_SWING, delta));
+
   const newLevel = Math.max(0, Math.min(100, currentLevel + delta));
-  const adjustment = newLevel - currentLevel; // recalc after clamping
+  const adjustment = newLevel - currentLevel;
 
   return {
     adjustment,
