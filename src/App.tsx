@@ -109,6 +109,7 @@ export default function App() {
   const notifPrefsRef = useRef(notifPrefs);
   const weatherRef = useRef<WeatherContext | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const [showWeatherPopup, setShowWeatherPopup] = useState(false);
 
   // Auth init
   useEffect(() => {
@@ -506,19 +507,23 @@ export default function App() {
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Weather badge */}
+          {/* Weather badge — tappable */}
           {weatherData && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              height: 32, padding: '0 10px', borderRadius: 10,
-              border: darkMode ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.09)',
-              background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-            }}>
+            <button
+              onClick={() => setShowWeatherPopup(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                height: 32, padding: '0 10px', borderRadius: 10,
+                border: darkMode ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.09)',
+                background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
               <span style={{ fontSize: 13, lineHeight: 1 }}>{weatherData.icon}</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: darkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)', letterSpacing: '-0.01em' }}>
                 {weatherData.tempF}°F
               </span>
-            </div>
+            </button>
           )}
           {/* Recovery / Hangover button */}
           {/* Hangover toggle — icon only when inactive, expands with label when active */}
@@ -716,6 +721,155 @@ export default function App() {
       {/* Bottom nav spacer — inside animated wrapper so it scrolls with content */}
       {showBottomNav && <div style={{ height: 74 }} />}
       </div>{/* end animated page wrapper */}
+
+      {/* Weather impact popup */}
+      {showWeatherPopup && weatherData && weatherRef.current && (() => {
+        const { tempF, humidity } = weatherRef.current;
+
+        // Temperature tier
+        let tempMult = 1.0;
+        let tempLabel = 'Mild';
+        let tempDesc = 'No impact on fluid loss';
+        let tempColor = darkMode ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.5)';
+        if (tempF > 95) {
+          tempMult = 1.50; tempLabel = 'Extreme Heat';
+          tempDesc = '+50% faster fluid loss'; tempColor = '#ef4444';
+        } else if (tempF > 85) {
+          tempMult = 1.30; tempLabel = 'Hot';
+          tempDesc = '+30% faster fluid loss'; tempColor = '#f97316';
+        } else if (tempF > 75) {
+          tempMult = 1.15; tempLabel = 'Warm';
+          tempDesc = '+15% faster fluid loss'; tempColor = '#eab308';
+        } else if (tempF < 50) {
+          tempMult = 0.88; tempLabel = 'Cool';
+          tempDesc = '−12% slower fluid loss'; tempColor = '#60a5fa';
+        }
+
+        // Humidity compound
+        const hotHumid = tempF > 80 && humidity > 70;
+        const humidLabel = hotHumid ? 'High — sweat won\'t evaporate' : 'Normal';
+        const humidDesc = hotHumid ? '+10% on top of heat' : 'No extra impact';
+        const humidColor = hotHumid ? '#f97316' : (darkMode ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.5)');
+
+        const netMult = tempMult * (hotHumid ? 1.10 : 1.0);
+        const netPct = Math.round((netMult - 1) * 100);
+
+        let netSummary: string;
+        let netAdvice: string;
+        if (netMult >= 1.45) {
+          netSummary = `You're losing water ${netPct}% faster than normal`;
+          netAdvice = 'Drink 16+ oz above your daily goal today';
+        } else if (netMult >= 1.20) {
+          netSummary = `You're losing water ${netPct}% faster than normal`;
+          netAdvice = 'Aim for 8–12 oz above your daily goal';
+        } else if (netMult >= 1.05) {
+          netSummary = `Slightly elevated fluid loss (${netPct}% above normal)`;
+          netAdvice = 'Add a glass or two extra throughout the day';
+        } else if (netMult < 1.0) {
+          netSummary = `Fluid loss is slightly reduced today`;
+          netAdvice = 'Normal intake is fine — no need to overdo it';
+        } else {
+          netSummary = 'Weather has no impact on your decay rate today';
+          netAdvice = 'Stick to your normal daily goal';
+        }
+
+        const rowStyle: React.CSSProperties = {
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          gap: 12, padding: '13px 0',
+          borderBottom: `1px solid ${darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+        };
+
+        return (
+          <div
+            onClick={() => setShowWeatherPopup(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{ width: '100%', maxWidth: 420, background: theme.card, borderRadius: '24px 24px 0 0', padding: '28px 22px 40px' }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 28, lineHeight: 1 }}>{weatherData.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.02em' }}>
+                      Weather Impact
+                    </div>
+                    <div style={{ fontSize: 12, color: theme.textSecondary, marginTop: 1 }}>
+                      {weatherData.tempF}°F · {humidity}% humidity · {weatherData.description}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowWeatherPopup(false)}
+                  style={{ width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', border: 'none', cursor: 'pointer' }}
+                >
+                  <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={theme.textSecondary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {/* Divider */}
+              <div style={{ height: 1, background: darkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)', margin: '16px 0 4px' }} />
+
+              {/* Temperature row */}
+              <div style={rowStyle}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: theme.textTertiary, marginBottom: 3 }}>Temperature</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary }}>{weatherData.tempF}°F — {tempLabel}</div>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: tempColor, whiteSpace: 'nowrap', marginTop: 16 }}>{tempDesc}</span>
+              </div>
+
+              {/* Humidity row */}
+              <div style={{ ...rowStyle, borderBottom: 'none' }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: theme.textTertiary, marginBottom: 3 }}>Humidity</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary }}>{humidity}% — {humidLabel}</div>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: humidColor, whiteSpace: 'nowrap', marginTop: 16 }}>{humidDesc}</span>
+              </div>
+
+              {/* Net effect card */}
+              <div style={{
+                marginTop: 16, padding: '14px 16px', borderRadius: 16,
+                background: netMult > 1.2
+                  ? (darkMode ? 'rgba(249,115,22,0.08)' : 'rgba(249,115,22,0.07)')
+                  : netMult < 1.0
+                    ? (darkMode ? 'rgba(96,165,250,0.08)' : 'rgba(96,165,250,0.07)')
+                    : (darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'),
+                border: `1px solid ${
+                  netMult > 1.2 ? 'rgba(249,115,22,0.18)'
+                  : netMult < 1.0 ? 'rgba(96,165,250,0.18)'
+                  : (darkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)')
+                }`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <svg width={13} height={13} viewBox="0 0 24 24" fill="none"
+                    stroke={netMult > 1.2 ? '#f97316' : netMult < 1.0 ? '#60a5fa' : theme.textSecondary}
+                    strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"
+                  >
+                    {netMult >= 1.0
+                      ? <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></>
+                      : <><polyline points="23 18 13.5 8.5 8.5 13.5 1 6" /><polyline points="17 18 23 18 23 12" /></>
+                    }
+                  </svg>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: theme.textTertiary }}>Net effect today</span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary, marginBottom: 4 }}>{netSummary}</div>
+                <div style={{ fontSize: 12, color: theme.textSecondary, lineHeight: 1.5 }}>{netAdvice}</div>
+              </div>
+
+              <button
+                onClick={() => setShowWeatherPopup(false)}
+                style={{ width: '100%', marginTop: 18, padding: '15px', borderRadius: 16, background: theme.textPrimary, color: darkMode ? '#0f1117' : '#fff', border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Urine color sheet */}
       {showUrineSheet && (
