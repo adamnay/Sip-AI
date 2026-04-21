@@ -40,7 +40,7 @@ export default function SciencePage({ onClose }: Props) {
           display: 'flex',
           alignItems: 'center',
           gap: 12,
-          padding: '20px 20px 12px',
+          padding: 'calc(20px + env(safe-area-inset-top, 0px)) 20px 12px',
           background: '#f2f3f7',
           position: 'sticky',
           top: 0,
