@@ -62,6 +62,42 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+function makeThumbnail(file: File, size = 56): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(url); resolve(''); return; }
+      const min = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width - min) / 2, (img.height - min) / 2, min, min, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(''); };
+    img.src = url;
+  });
+}
+
+function base64ToThumbnail(base64: string, size = 56): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(''); return; }
+      const min = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width - min) / 2, (img.height - min) / 2, min, min, 0, 0, size, size);
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = () => resolve('');
+    img.src = `data:image/jpeg;base64,${base64}`;
+  });
+}
+
 export default function BottomNav({ activePage, onNavigate, onScanComplete, onScanDirectConfirm }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
@@ -69,6 +105,7 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete, onSc
   const [scanning, setScanning] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scanSheet, setScanSheet] = useState<ScanSheet>(null);
+  const [scanThumbnail, setScanThumbnail] = useState<string>('');
   const [editText, setEditText] = useState('');
   const [editAnalyzing, setEditAnalyzing] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -79,9 +116,10 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete, onSc
     e.target.value = '';
     setScanning(true);
     try {
-      const base64 = await fileToBase64(file);
+      const [base64, thumb] = await Promise.all([fileToBase64(file), makeThumbnail(file)]);
       const mediaType = file.type as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
       const result = await analyzeDrinkPhoto(base64, mediaType);
+      setScanThumbnail(thumb);
       setScanSheet({ step: 'result', result });
     } catch {
       onScanComplete('water');
@@ -102,7 +140,11 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete, onSc
     setShowScanner(false);
     setScanning(true);
     try {
-      const result = await analyzeDrinkPhoto(base64, 'image/jpeg');
+      const [result, thumb] = await Promise.all([
+        analyzeDrinkPhoto(base64, 'image/jpeg'),
+        base64ToThumbnail(base64),
+      ]);
+      setScanThumbnail(thumb);
       setScanSheet({ step: 'result', result });
     } catch {
       onScanComplete('water');
@@ -115,8 +157,12 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete, onSc
     if (!scanSheet) return;
     const { result } = scanSheet;
     feedbackAdd();
-    onScanDirectConfirm(result.drink_type, result.estimated_volume_ml, { label: result.display_name });
+    onScanDirectConfirm(result.drink_type, result.estimated_volume_ml, {
+      label: result.display_name,
+      ...(scanThumbnail ? { scanThumbnail } : {}),
+    });
     setScanSheet(null);
+    setScanThumbnail('');
   };
 
   const handleStartEdit = () => {
@@ -142,16 +188,20 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete, onSc
         caffeinePer100ml: analysis.caffeinePer100ml || undefined,
         electrolyte: analysis.electrolyte || undefined,
         label: analysis.label,
+        ...(scanThumbnail ? { scanThumbnail } : {}),
       });
       setScanSheet(null);
+      setScanThumbnail('');
     } catch {
       const parsedOz = parseOzFromText(editText);
       const volumeMl = parsedOz ? Math.round(parsedOz * 29.57) : scanSheet.result.estimated_volume_ml;
       feedbackAdd();
       onScanDirectConfirm('unknown', volumeMl, {
         label: editText.replace(/\d+(?:\.\d+)?\s*oz/gi, '').trim().slice(0, 20) || editText.slice(0, 20),
+        ...(scanThumbnail ? { scanThumbnail } : {}),
       });
       setScanSheet(null);
+      setScanThumbnail('');
     } finally {
       setEditAnalyzing(false);
     }
@@ -216,7 +266,7 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete, onSc
       <>
         {/* Backdrop */}
         <div
-          onClick={() => setScanSheet(null)}
+          onClick={() => { setScanSheet(null); setScanThumbnail(''); }}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
             zIndex: 45, animation: 'fadeIn 0.2s ease forwards',
@@ -246,14 +296,19 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete, onSc
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: confidenceColor }}>
                   {confidenceLabel}
                 </span>
-                <button onClick={() => setScanSheet(null)} style={closeBtnStyle}>
+                <button onClick={() => { setScanSheet(null); setScanThumbnail(''); }} style={closeBtnStyle}>
                   <XIcon size={14} color={theme.textSecondary} />
                 </button>
               </div>
 
               {/* Drink info */}
               <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                <div style={{ fontSize: 56, lineHeight: 1, marginBottom: 12 }}>{emoji}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                  {scanThumbnail
+                    ? <img src={scanThumbnail} alt="" style={{ width: 72, height: 72, borderRadius: 16, objectFit: 'cover', display: 'block', boxShadow: '0 2px 12px rgba(0,0,0,0.15)' }} />
+                    : <span style={{ fontSize: 56, lineHeight: 1 }}>{emoji}</span>
+                  }
+                </div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.03em', marginBottom: 5 }}>
                   {result.display_name}
                 </div>
