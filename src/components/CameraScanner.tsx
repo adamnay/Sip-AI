@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 
 // ── Stability tuning ──────────────────────────────────────────────────────────
 const SAMPLE_PX     = 32;   // side of the center crop used for frame comparison
-const STABLE_DIFF   = 7;    // mean per-channel pixel diff below which = stable
-const FRAMES_NEEDED = 14;   // consecutive stable frames before auto-capture (~1.4 s)
+const STABLE_DIFF   = 18;   // mean per-channel pixel diff below which = stable (higher = more tolerant of hand tremor)
+const FRAMES_NEEDED = 8;    // consecutive stable frames before auto-capture (~0.8 s)
 
 interface Props {
   onCapture: (base64: string) => void;
@@ -105,7 +105,7 @@ export default function CameraScanner({ onCapture, onClose }: Props) {
               if (avg < STABLE_DIFF) {
                 stableRef.current = Math.min(stableRef.current + 1, FRAMES_NEEDED);
               } else {
-                stableRef.current = Math.max(0, stableRef.current - 2);
+                stableRef.current = Math.max(0, stableRef.current - 1);
               }
 
               const pct = (stableRef.current / FRAMES_NEEDED) * 100;
