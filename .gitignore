@@ -1,2 +1,6 @@
 .env
 dist/
+
+# Capacitor native projects — generated locally, not committed
+ios/
+android/

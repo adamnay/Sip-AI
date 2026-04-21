@@ -1,3 +1,27 @@
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+
+// ─── Haptics ─────────────────────────────────────────────────────────────────
+// Uses Capacitor Haptics in native apps (works on iOS + Android).
+// Falls back to navigator.vibrate on web.
+
+async function nativeHaptic(style: ImpactStyle) {
+  try {
+    await Haptics.impact({ style });
+  } catch {
+    // Not in native context — fall back to vibration API (Android web / desktop)
+    try { navigator.vibrate?.(8); } catch { /* ignore */ }
+  }
+}
+
+async function nativeNotificationHaptic(type: NotificationType) {
+  try {
+    await Haptics.notification({ type });
+  } catch {
+    try { navigator.vibrate?.([8, 55, 8]); } catch { /* ignore */ }
+  }
+}
+
+// ─── Audio ────────────────────────────────────────────────────────────────────
 // Singleton AudioContext — reused across all sounds
 let _ctx: AudioContext | null = null;
 
@@ -14,20 +38,9 @@ function getCtx(): AudioContext | null {
 }
 
 /**
- * Vibration haptic — works on Android Chrome; silently skipped on iOS.
- * pattern: ms on, or [ms on, ms off, ms on, ...]
- */
-export function haptic(pattern: number | number[] = 8) {
-  try {
-    if ('vibrate' in navigator) navigator.vibrate(pattern);
-  } catch { /* ignore */ }
-}
-
-/**
  * Clean bell ding via Web Audio API.
  * Two sine oscillators at A5 (880 Hz) + E6 (1320 Hz) — a perfect fifth apart.
  * The harmonic fades 3× faster than the fundamental, exactly how a real bell rings.
- * No pitch slide — stays clean and musical throughout.
  */
 export function playDing() {
   const ac = getCtx();
@@ -35,7 +48,7 @@ export function playDing() {
 
   const now = ac.currentTime;
 
-  // Fundamental: A5 — clear, present, not too sharp
+  // Fundamental: A5
   const osc1 = ac.createOscillator();
   const gain1 = ac.createGain();
   osc1.type = 'sine';
@@ -43,10 +56,10 @@ export function playDing() {
   osc1.connect(gain1);
   gain1.connect(ac.destination);
   gain1.gain.setValueAtTime(0.001, now);
-  gain1.gain.linearRampToValueAtTime(0.26, now + 0.006);   // fast attack
-  gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.65); // long smooth tail
+  gain1.gain.linearRampToValueAtTime(0.26, now + 0.006);
+  gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
 
-  // Harmonic: E6 (perfect fifth above) — adds bell shimmer, fades quickly
+  // Harmonic: E6 (perfect fifth above)
   const osc2 = ac.createOscillator();
   const gain2 = ac.createGain();
   osc2.type = 'sine';
@@ -54,21 +67,19 @@ export function playDing() {
   osc2.connect(gain2);
   gain2.connect(ac.destination);
   gain2.gain.setValueAtTime(0.001, now);
-  gain2.gain.linearRampToValueAtTime(0.10, now + 0.004);   // slightly faster attack
-  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.20); // fades 3× faster
+  gain2.gain.linearRampToValueAtTime(0.10, now + 0.004);
+  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
 
   osc1.start(now); osc1.stop(now + 0.65);
   osc2.start(now); osc2.stop(now + 0.20);
 }
 
 /**
- * Soft rejection thud — two quick low "dun-dun" pulses, like a gentle "nope".
- * Low frequency (330 → 220 Hz), very short and muffled, nothing harsh.
+ * Soft rejection thud — two quick low "dun-dun" pulses.
  */
 export function playRemove() {
   const ac = getCtx();
   if (!ac) return;
-
   const now = ac.currentTime;
 
   const hit = (startTime: number, freq: number) => {
@@ -79,24 +90,26 @@ export function playRemove() {
     osc.connect(gain);
     gain.connect(ac.destination);
     gain.gain.setValueAtTime(0.001, startTime);
-    gain.gain.linearRampToValueAtTime(0.14, startTime + 0.004); // near-instant attack
-    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.10); // very short decay
+    gain.gain.linearRampToValueAtTime(0.14, startTime + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.10);
     osc.start(startTime);
     osc.stop(startTime + 0.10);
   };
 
-  hit(now,        330); // first pulse — E4
-  hit(now + 0.11, 220); // second pulse — A3, lower = "nope"
+  hit(now,        330);
+  hit(now + 0.11, 220);
 }
 
-/** Trigger both haptic + ding — for adding a drink or activity */
+// ─── Combined feedback ────────────────────────────────────────────────────────
+
+/** Haptic + ding — for adding a drink or activity */
 export function feedbackAdd() {
-  haptic(9);
+  void nativeHaptic(ImpactStyle.Medium);
   playDing();
 }
 
-/** Trigger haptic + descending tone — for removing a drink, activity, or favorite */
+/** Haptic + thud — for removing a drink, activity, or favorite */
 export function feedbackRemove() {
-  haptic([8, 55, 8]);
+  void nativeNotificationHaptic(NotificationType.Warning);
   playRemove();
 }
