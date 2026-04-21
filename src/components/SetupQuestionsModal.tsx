@@ -124,14 +124,6 @@ const QUESTIONS: Question[] = [
     icon: 'building',
     options: ['Air-conditioned office or home', 'Heated indoor space', 'Mostly outdoors', 'Mixed throughout the day'],
   },
-  {
-    id: 'altitude', type: 'choice',
-    question: 'What altitude do you live or train at?',
-    sub: 'Higher altitude = drier air = faster respiratory fluid loss.',
-    icon: 'mountain',
-    options: ['Sea level (0–1,000 ft)', 'Moderate (1,000–4,999 ft)', 'High (5,000–8,000 ft)', 'Very high (8,000+ ft)'],
-  },
-
   // ── Section 4: Habits ─────────────────────────────────────────────────────
   {
     id: 'caffeine', type: 'choice',
@@ -167,7 +159,7 @@ const QUESTIONS: Question[] = [
     id: 'interstitial_3', type: 'interstitial',
     question: '', sub: '', icon: '', options: [],
     headline: 'Almost done — one last section',
-    stat: 'Certain health conditions and medications can shift fluid needs by 20–40%.',
+    stat: 'Certain health conditions — like pregnancy or diabetes — can shift fluid needs by 20–40%.',
     body: 'This final section ensures your daily target is accurate and safe for your body.',
   },
 
@@ -178,13 +170,6 @@ const QUESTIONS: Question[] = [
     sub: 'This adjusts your target to be appropriate for your body.',
     icon: 'health',
     options: ['None', 'Pregnant', 'Breastfeeding', 'Type 1 or 2 diabetes', 'Kidney condition', 'Heart condition'],
-  },
-  {
-    id: 'diuretics', type: 'choice',
-    question: 'Do you take any diuretic medications?',
-    sub: 'Diuretics (common for blood pressure) significantly increase fluid output.',
-    icon: 'pill',
-    options: ['No', 'Yes, mild (e.g. low-dose HCTZ)', 'Yes, strong (e.g. furosemide)', 'Not sure'],
   },
   {
     id: 'challenge', type: 'choice',

@@ -208,8 +208,8 @@ function migrateState(state: Partial<HydrationState>): HydrationState {
 /**
  * Compute daily hydration target in oz from comprehensive questionnaire answers.
  * Factors in 12+ variables: weight, gender, age, activity, exercise type,
- * work environment, climate, altitude, indoor environment, caffeine, alcohol,
- * diet, health conditions, and medications.
+ * work environment, climate, indoor environment, caffeine, alcohol,
+ * diet, sleep, and health conditions.
  */
 export function computeDailyTargetFromAnswers(
   answers: Record<string, string>,
@@ -264,11 +264,6 @@ export function computeDailyTargetFromAnswers(
   if (answers.indoorEnv === 'Air-conditioned office or home') target += 5;
   else if (answers.indoorEnv === 'Heated indoor space')        target += 4;
 
-  // ── Altitude ─────────────────────────────────────────────────────────────
-  if (answers.altitude === 'Very high (8,000+ ft)')           target += 14;
-  else if (answers.altitude === 'High (5,000–8,000 ft)')      target += 9;
-  else if (answers.altitude === 'Moderate (1,000–4,999 ft)')  target += 4;
-
   // ── Goal modifier ────────────────────────────────────────────────────────
   if (answers.goal === 'Athletic performance')   target *= 1.08;
   else if (answers.goal === 'Skin health & glow') target *= 1.06;
@@ -301,11 +296,6 @@ export function computeDailyTargetFromAnswers(
   else if (answers.healthCondition === 'Breastfeeding') target += 13;
   else if (answers.healthCondition === 'Type 1 or 2 diabetes') target += 9;
   else if (answers.healthCondition === 'Kidney condition') target += 6;
-
-  // ── Diuretic medications ─────────────────────────────────────────────────
-  if (answers.diuretics === 'Yes, strong (e.g. furosemide)') target += 18;
-  else if (answers.diuretics === 'Yes, mild (e.g. low-dose HCTZ)') target += 9;
-  else if (answers.diuretics === 'Not sure') target += 5;
 
   return Math.round(Math.max(48, Math.min(250, target)));
 }

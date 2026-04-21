@@ -38,8 +38,6 @@ export async function generateProfileSummary(
   // Environment
   if (answers.climate)        parts.push(`Climate: ${answers.climate}`);
   if (answers.indoorEnv)      parts.push(`Indoor environment: ${answers.indoorEnv}`);
-  if (answers.altitude)       parts.push(`Altitude: ${answers.altitude}`);
-
   // Diet & substances
   if (answers.caffeine)       parts.push(`Daily caffeine: ${answers.caffeine}`);
   if (answers.alcohol)        parts.push(`Alcohol: ${answers.alcohol}`);
@@ -50,10 +48,6 @@ export async function generateProfileSummary(
   if (answers.healthCondition && answers.healthCondition !== 'None of the above') {
     parts.push(`Health condition: ${answers.healthCondition}`);
   }
-  if (answers.diuretics && answers.diuretics !== 'No') {
-    parts.push(`Diuretic medications: ${answers.diuretics}`);
-  }
-
   // Motivations & habits
   if (answers.challenge)      parts.push(`Biggest challenge: ${answers.challenge}`);
   if (answers.wakeTime)       parts.push(`Wake time: ${answers.wakeTime}`);
