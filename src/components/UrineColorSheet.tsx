@@ -60,7 +60,6 @@ export default function UrineColorSheet({ currentLevel, onResult, onClose }: Pro
   const [position, setPosition] = useState(0.3); // start near yellow
   const [phase, setPhase] = useState<Phase>('sliding');
   const [aiResult, setAiResult] = useState<{ adjustment: number; newLevel: number; feedback: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const currentColor = interpolateColor(position);
   const currentStop = getNearestStop(position);
@@ -85,22 +84,9 @@ export default function UrineColorSheet({ currentLevel, onResult, onClose }: Pro
   const handleSelect = async () => {
     if (phase !== 'sliding') return;
     setPhase('analyzing');
-    setError(null);
-    try {
-      const result = await analyzeUrineColor(currentStop.label, currentLevel);
-      setAiResult(result);
-      setPhase('result');
-    } catch {
-      setError('Could not analyze — tap Apply to use a standard calibration.');
-      // Fallback adjustments mirroring the original static table
-      const fallbackMap: Record<string, number> = {
-        'Clear': 8, 'Pale straw': 4, 'Yellow': 0,
-        'Dark yellow': -6, 'Amber': -13, 'Orange': -20, 'Brown': -28,
-      };
-      const adj = fallbackMap[currentStop.label] ?? 0;
-      setAiResult({ adjustment: adj, newLevel: Math.max(0, Math.min(100, currentLevel + adj)), feedback: '' });
-      setPhase('result');
-    }
+    const result = await analyzeUrineColor(currentStop.label, currentLevel);
+    setAiResult(result);
+    setPhase('result');
   };
 
   const handleApply = () => {
@@ -112,10 +98,19 @@ export default function UrineColorSheet({ currentLevel, onResult, onClose }: Pro
     });
   };
 
-  const isPositive = (aiResult?.adjustment ?? 0) >= 0;
-  const deltaColor = isPositive ? '#16a34a' : '#dc2626';
+  // Severity color based on the urine color — not on whether delta is + or -
+  // (a dark color giving +0 should still feel like a warning, not success)
+  const severityColor = (() => {
+    const idx = STOPS.findIndex(s => s.label === currentStop.label);
+    if (idx <= 1) return '#16a34a'; // clear / pale straw — good
+    if (idx === 2) return '#ca8a04'; // yellow — neutral/ok
+    if (idx === 3) return '#d97706'; // dark yellow — caution
+    return '#dc2626';               // amber / orange / brown — danger
+  })();
+
+  const adj = aiResult?.adjustment ?? 0;
   const deltaText = aiResult
-    ? `${isPositive ? '+' : ''}${aiResult.adjustment}%`
+    ? (adj === 0 ? '±0%' : `${adj > 0 ? '+' : ''}${adj}%`)
     : null;
 
   return (
@@ -192,7 +187,7 @@ export default function UrineColorSheet({ currentLevel, onResult, onClose }: Pro
           {/* Show delta once result is in */}
           {phase === 'result' && deltaText && (
             <div style={{ marginLeft: 'auto' }}>
-              <p style={{ fontSize: 20, fontWeight: 800, color: deltaColor, margin: 0, letterSpacing: '-0.02em', textAlign: 'right' }}>
+              <p style={{ fontSize: 20, fontWeight: 800, color: severityColor, margin: 0, letterSpacing: '-0.02em', textAlign: 'right' }}>
                 {deltaText}
               </p>
               {aiResult && (
@@ -268,10 +263,6 @@ export default function UrineColorSheet({ currentLevel, onResult, onClose }: Pro
           </div>
         )}
 
-        {error && (
-          <p style={{ fontSize: 12, color: '#dc2626', margin: '10px 20px 0' }}>{error}</p>
-        )}
-
         {/* Action button */}
         <div style={{ padding: '14px 20px 0' }}>
           {phase === 'sliding' && (
@@ -314,7 +305,7 @@ export default function UrineColorSheet({ currentLevel, onResult, onClose }: Pro
               style={{
                 width: '100%', border: 'none', borderRadius: 14,
                 padding: '14px', fontSize: 15, fontWeight: 700,
-                background: isPositive ? '#16a34a' : '#dc2626',
+                background: severityColor,
                 color: '#ffffff',
                 cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.01em',
               }}

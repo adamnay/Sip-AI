@@ -1,71 +1,86 @@
-import Anthropic from '@anthropic-ai/sdk';
-
-let _client: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!_client) {
-    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined;
-    if (!apiKey) throw new Error('No API key');
-    _client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-  }
-  return _client;
-}
+// Deterministic urine-color calibration — no AI, no unreliable sign flips.
+//
+// Each color maps to a scientifically grounded "true hydration %" target.
+// For DARK colors (dark yellow → brown) we only allow DOWNWARD correction:
+//   if the app already shows a level ≤ the target, we do nothing (0).
+//   This ensures selecting "dark yellow" can never add hydration.
+// For LIGHT colors (yellow and paler) we allow both directions — you may
+//   have drunk water the app hasn't tracked.
 
 export interface UrineAnalysisResult {
-  adjustment: number;   // delta to apply to current level (can be + or -)
-  newLevel: number;     // what the true level should be after calibration
-  feedback: string;     // 1-2 sentences, personal + actionable
+  adjustment: number;   // delta applied to current level (clamped)
+  newLevel: number;     // resulting level after calibration
+  feedback: string;     // 1–2 sentences, actionable
 }
+
+interface ColorConfig {
+  target: number;
+  feedback: string;
+  dark: boolean; // true = only allow downward correction
+}
+
+const COLOR_CALIBRATION: Record<string, ColorConfig> = {
+  'Clear': {
+    target: 95,
+    feedback: 'You may be slightly over-hydrated — your fluid intake is excellent. Ease off water for now and let your kidneys catch up.',
+    dark: false,
+  },
+  'Pale straw': {
+    target: 82,
+    feedback: 'Perfect hydration — you\'re hitting the sweet spot. Keep sipping throughout the day to stay here.',
+    dark: false,
+  },
+  'Yellow': {
+    target: 68,
+    feedback: 'Good hydration. You\'re in a healthy range. Keep drinking water steadily through the day.',
+    dark: false,
+  },
+  'Dark yellow': {
+    target: 50,
+    feedback: 'Your body needs more fluids. Aim to drink 16–20 oz of water in the next 30 minutes.',
+    dark: true,
+  },
+  'Amber': {
+    target: 35,
+    feedback: 'You\'re noticeably dehydrated. Drink 24–32 oz of water now and avoid caffeine and alcohol until your color improves.',
+    dark: true,
+  },
+  'Orange': {
+    target: 18,
+    feedback: 'Significantly dehydrated. Drink water steadily — about 8 oz every 15 minutes. Adding an electrolyte drink will help.',
+    dark: true,
+  },
+  'Brown': {
+    target: 7,
+    feedback: '⚠️ Severely dehydrated. Drink water immediately. If you feel dizzy, lightheaded, or confused, seek medical attention.',
+    dark: true,
+  },
+};
 
 export async function analyzeUrineColor(
   colorLabel: string,
-  currentLevel: number
+  currentLevel: number,
 ): Promise<UrineAnalysisResult> {
-  const client = getClient();
+  const config = COLOR_CALIBRATION[colorLabel];
 
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5',
-    max_tokens: 150,
-    messages: [
-      {
-        role: 'user',
-        content: `You are a hydration science assistant inside a tracking app. The user just identified their urine color using a slider.
+  if (!config) {
+    // Unknown label — no change
+    return { adjustment: 0, newLevel: currentLevel, feedback: 'Keep tracking your hydration.' };
+  }
 
-Current app hydration level: ${currentLevel}%
-Urine color they selected: "${colorLabel}"
+  let delta = config.target - currentLevel;
 
-Urine color hydration reference:
-- Clear → 85–100% hydrated (possibly over-hydrated)
-- Pale straw → 75–90%
-- Yellow → 60–80%
-- Dark yellow → 45–65%
-- Amber → 30–50%
-- Orange → 15–35%
-- Brown → 0–20% (severely dehydrated, urgent)
+  // Dark colors: never increase the level (that would be misleading)
+  if (config.dark && delta > 0) {
+    delta = 0;
+  }
 
-Your job: recalibrate the hydration level based on the urine color as ground truth.
+  const newLevel = Math.max(0, Math.min(100, currentLevel + delta));
+  const adjustment = newLevel - currentLevel; // recalc after clamping
 
-Rules:
-- Urine color is more reliable than the app's estimate — trust it
-- Calculate a sensible target level within the color's range
-- adjustment = targetLevel - currentLevel (can be positive or negative)
-- feedback: 1–2 sentences, friendly and specific, include what to drink/do next
-- If urgently low (orange/brown), be direct and firm
-- If well hydrated (clear/pale), be positive and note if over-hydration is possible
-
-Respond with ONLY valid JSON (no markdown):
-{"adjustment": <integer>, "newLevel": <integer 0-100>, "feedback": "<string>"}`,
-      },
-    ],
-  });
-
-  const raw = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
-  const cleaned = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
-  const parsed = JSON.parse(cleaned) as UrineAnalysisResult;
-
-  // Sanity clamp
-  parsed.newLevel = Math.max(0, Math.min(100, parsed.newLevel));
-  parsed.adjustment = parsed.newLevel - currentLevel;
-
-  return parsed;
+  return {
+    adjustment,
+    newLevel,
+    feedback: config.feedback,
+  };
 }
