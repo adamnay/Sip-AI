@@ -3,6 +3,7 @@ import { useTheme, getTheme } from '../context/ThemeContext';
 import type { DrinkType, DrinkOverrides } from '../engine/hydrationEngine';
 import { analyzeDrinkPhoto, analyzeDrinkName } from '../api/drinkAnalyzer';
 import { feedbackAdd } from '../utils/feedback';
+import CameraScanner from './CameraScanner';
 import {
   WaterIcon,
   CoffeeIcon,
@@ -99,6 +100,7 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, onScanEditCon
   const [editText, setEditText] = useState('');
   const [editAnalyzing, setEditAnalyzing] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const [showScanner, setShowScanner] = useState(false);
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -184,7 +186,46 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, onScanEditCon
     }
   };
 
+  // ── Camera scanner handlers ───────────────────────────────────────────────
+  const handleScanClick = () => {
+    if (navigator.mediaDevices) {
+      setShowScanner(true);
+    } else {
+      fileRef.current?.click();
+    }
+  };
+
+  const handleCameraCapture = async (base64: string) => {
+    setShowScanner(false);
+    setAnalyzing({ status: 'analyzing' });
+    try {
+      const [result, thumbnail] = await Promise.all([
+        analyzeDrinkPhoto(base64, 'image/jpeg'),
+        base64ToThumbnail(base64),
+      ]);
+      setAnalyzing({
+        status: 'confirming',
+        displayName: result.display_name,
+        type: result.drink_type,
+        volume: result.estimated_volume_ml,
+        notes: result.notes,
+        thumbnail,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to analyze';
+      setAnalyzing({ status: 'error', error: msg });
+      setTimeout(() => setAnalyzing({ status: 'idle' }), 3000);
+    }
+  };
+
   return (
+    <>
+    {showScanner && (
+      <CameraScanner
+        onCapture={handleCameraCapture}
+        onClose={() => setShowScanner(false)}
+      />
+    )}
     <div className="w-full px-4 flex flex-col gap-3">
 
       {/* ── Photo confirmation ─────────────────────────────────────────────── */}
@@ -345,7 +386,7 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, onScanEditCon
 
       {/* ── Scan button ────────────────────────────────────────────────────── */}
       <button
-        onClick={() => fileRef.current?.click()}
+        onClick={handleScanClick}
         disabled={analyzing.status === 'analyzing'}
         className="w-full rounded-2xl drink-btn"
         style={{
@@ -404,6 +445,7 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, onScanEditCon
         ))}
       </div>
     </div>
+  </>
   );
 }
 
@@ -493,5 +535,24 @@ function makeThumbnail(file: File, size = 56): Promise<string> {
     };
     img.onerror = () => { URL.revokeObjectURL(url); resolve(''); };
     img.src = url;
+  });
+}
+
+function base64ToThumbnail(base64: string, size = 56): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(''); return; }
+      const min = Math.min(img.width, img.height);
+      const sx = (img.width - min) / 2;
+      const sy = (img.height - min) / 2;
+      ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = () => resolve('');
+    img.src = `data:image/jpeg;base64,${base64}`;
   });
 }

@@ -120,6 +120,18 @@ body {
   animation: shimmer 2s ease infinite;
 }
 
+@keyframes scanSweep {
+  0%   { top: 8px;            opacity: 0; }
+  6%   { opacity: 1; }
+  94%  { opacity: 1; }
+  100% { top: calc(100% - 8px); opacity: 0; }
+}
+
+@keyframes bracketPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
 .drink-btn {
   transition: transform 0.1s ease, box-shadow 0.15s ease;
   user-select: none;
