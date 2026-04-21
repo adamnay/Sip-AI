@@ -683,7 +683,7 @@ export default function App() {
           />
 
           {/* Drink input */}
-          <DrinkInput onSelectDrink={handleSelectDrink} onScanConfirm={handleScanConfirm} hangoverMode={state.hangoverMode} />
+          <DrinkInput onSelectDrink={handleSelectDrink} onScanConfirm={handleScanConfirm} onScanEditConfirm={handleScanDirectLog} hangoverMode={state.hangoverMode} />
 
           {/* Activity input */}
           <div className="px-4 mt-3">

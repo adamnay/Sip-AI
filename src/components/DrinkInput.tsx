@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { useTheme, getTheme } from '../context/ThemeContext';
-import type { DrinkType } from '../engine/hydrationEngine';
-import { analyzeDrinkPhoto } from '../api/drinkAnalyzer';
+import type { DrinkType, DrinkOverrides } from '../engine/hydrationEngine';
+import { analyzeDrinkPhoto, analyzeDrinkName } from '../api/drinkAnalyzer';
+import { feedbackAdd } from '../utils/feedback';
 import {
   WaterIcon,
   CoffeeIcon,
@@ -17,10 +18,10 @@ import {
 interface Props {
   onSelectDrink: (type: DrinkType) => void;
   onScanConfirm: (type: DrinkType, volumeMl: number, displayName: string, thumbnail?: string) => void;
+  onScanEditConfirm?: (type: DrinkType, volumeMl: number, overrides: DrinkOverrides) => void;
   hangoverMode?: boolean;
 }
 
-// Recovery priority: 'best' = highlight green, 'good' = subtle green, 'avoid' = dim + warn
 const RECOVERY_PRIORITY: Partial<Record<DrinkType, 'best' | 'good' | 'avoid'>> = {
   water:        'best',
   electrolyte:  'best',
@@ -57,21 +58,47 @@ function getDrinkIcon(type: DrinkType, size: number = 20, color: string = 'rgba(
   }
 }
 
+// ── Helpers shared with BottomNav scan ────────────────────────────────────────
+
+function detectTypeFromText(text: string): DrinkType {
+  const l = text.toLowerCase();
+  if (/coffee|latte|espresso|cappuccino|macchiato|mocha|americano|cold brew/.test(l)) return 'coffee';
+  if (/\btea\b|matcha|chai/.test(l)) return 'tea';
+  if (/juice|lemonade|cider/.test(l)) return 'juice';
+  if (/\bsoda\b|cola|pepsi|sprite|fanta|ginger ale|dr pepper|7.?up/.test(l)) return 'soda';
+  if (/red bull|monster|celsius|bang|prime|reign|energy drink/.test(l)) return 'energy_drink';
+  if (/gatorade|pedialyte|liquid i\.?v|lmnt|electrolyte|nuun|powerade|bodyarmor/.test(l)) return 'electrolyte';
+  if (/\bwater\b/.test(l)) return 'water';
+  if (/beer|wine|vodka|whiskey|rum|gin|tequila|cocktail|champagne|prosecco/.test(l)) return 'alcohol';
+  if (/smoothie|protein shake|\bshake\b/.test(l)) return 'smoothie';
+  return 'unknown';
+}
+
+function parseOzFromText(text: string): number | null {
+  const match = text.match(/(\d+(?:\.\d+)?)\s*oz/i);
+  return match ? parseFloat(match[1]) : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface AnalyzingState {
-  status: 'idle' | 'analyzing' | 'confirming' | 'error';
+  status: 'idle' | 'analyzing' | 'confirming' | 'editing' | 'error';
   displayName?: string;
   type?: DrinkType;
   volume?: number;
   notes?: string;
   error?: string;
-  thumbnail?: string; // small base64 JPEG for the log
+  thumbnail?: string;
 }
 
-export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode = false }: Props) {
+export default function DrinkInput({ onSelectDrink, onScanConfirm, onScanEditConfirm, hangoverMode = false }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
   const fileRef = useRef<HTMLInputElement>(null);
   const [analyzing, setAnalyzing] = useState<AnalyzingState>({ status: 'idle' });
+  const [editText, setEditText] = useState('');
+  const [editAnalyzing, setEditAnalyzing] = useState(false);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -110,9 +137,57 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode 
     setAnalyzing({ status: 'idle' });
   };
 
+  const handleStartEdit = () => {
+    setEditText(analyzing.displayName ?? '');
+    setAnalyzing(prev => ({ ...prev, status: 'editing' }));
+    setTimeout(() => editInputRef.current?.focus(), 120);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editText.trim() || editAnalyzing) return;
+    setEditAnalyzing(true);
+    try {
+      const detectedType = detectTypeFromText(editText);
+      const parsedOz = parseOzFromText(editText);
+      const volumeMl = parsedOz ? Math.round(parsedOz * 29.57) : (analyzing.volume ?? 473);
+      // Strip the size from the name before sending to AI
+      const drinkName = editText.replace(/\d+(?:\.\d+)?\s*oz/gi, '').trim().replace(/,\s*$/, '').trim() || editText.trim();
+      const analysis = await analyzeDrinkName(drinkName, detectedType);
+      feedbackAdd();
+      const overrides: DrinkOverrides = {
+        hydrationPerMl: analysis.hydrationPerMl,
+        caffeinePer100ml: analysis.caffeinePer100ml || undefined,
+        electrolyte: analysis.electrolyte || undefined,
+        label: analysis.label,
+        ...(analyzing.thumbnail ? { scanThumbnail: analyzing.thumbnail } : {}),
+      };
+      if (onScanEditConfirm) {
+        onScanEditConfirm(detectedType, volumeMl, overrides);
+      } else {
+        onScanConfirm(detectedType, volumeMl, analysis.label, analyzing.thumbnail);
+      }
+      setAnalyzing({ status: 'idle' });
+    } catch {
+      // Fallback: log with just the edited name
+      feedbackAdd();
+      const parsedOz = parseOzFromText(editText);
+      const volumeMl = parsedOz ? Math.round(parsedOz * 29.57) : (analyzing.volume ?? 473);
+      const label = editText.replace(/\d+(?:\.\d+)?\s*oz/gi, '').trim().slice(0, 20) || editText.slice(0, 20);
+      if (onScanEditConfirm) {
+        onScanEditConfirm('unknown', volumeMl, { label, ...(analyzing.thumbnail ? { scanThumbnail: analyzing.thumbnail } : {}) });
+      } else {
+        onScanConfirm('unknown', volumeMl, label, analyzing.thumbnail);
+      }
+      setAnalyzing({ status: 'idle' });
+    } finally {
+      setEditAnalyzing(false);
+    }
+  };
+
   return (
     <div className="w-full px-4 flex flex-col gap-3">
-      {/* Photo confirmation */}
+
+      {/* ── Photo confirmation ─────────────────────────────────────────────── */}
       {analyzing.status === 'confirming' && (
         <div
           className="glass-strong rounded-2xl p-4 animate-fade-up flex flex-col gap-3"
@@ -128,35 +203,42 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode 
             <div className="flex-1">
               <p className="font-semibold text-sm" style={{ color: theme.textPrimary }}>{analyzing.displayName}</p>
               <p className="text-xs" style={{ color: theme.textSecondary }}>
-                ~{analyzing.volume}ml detected
+                ~{Math.round((analyzing.volume ?? 0) / 29.57)} oz detected
               </p>
             </div>
           </div>
           {analyzing.notes && (
             <p className="text-xs" style={{ color: theme.textSecondary }}>{analyzing.notes}</p>
           )}
+
+          {/* Edit link */}
+          <button
+            onClick={handleStartEdit}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              padding: '2px 0', fontFamily: 'inherit',
+            }}
+          >
+            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={theme.textSecondary} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            <span style={{ fontSize: 12, fontWeight: 600, color: theme.textSecondary }}>Not right? Edit</span>
+          </button>
+
           <div className="flex gap-2">
             <button
               onClick={confirmPhoto}
               className="flex-1 rounded-xl py-2.5 text-sm font-semibold"
-              style={{
-                background: '#111827',
-                color: '#ffffff',
-                border: 'none',
-                cursor: 'pointer',
-              }}
+              style={{ background: '#111827', color: '#ffffff', border: 'none', cursor: 'pointer' }}
             >
               Add this drink
             </button>
             <button
               onClick={() => setAnalyzing({ status: 'idle' })}
               className="rounded-xl px-4 py-2.5 text-sm"
-              style={{
-                background: 'transparent',
-                color: 'rgba(0,0,0,0.4)',
-                border: '1px solid rgba(0,0,0,0.1)',
-                cursor: 'pointer',
-              }}
+              style={{ background: 'transparent', color: theme.textSecondary, border: `1px solid ${theme.cardBorder}`, cursor: 'pointer' }}
             >
               Cancel
             </button>
@@ -164,7 +246,79 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode 
         </div>
       )}
 
-      {/* Analyzing spinner */}
+      {/* ── Edit / override step ───────────────────────────────────────────── */}
+      {analyzing.status === 'editing' && (
+        <div
+          className="glass-strong rounded-2xl p-4 animate-fade-up flex flex-col gap-3"
+          style={{ borderLeft: '3px solid rgba(6,182,212,0.5)' }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => setAnalyzing(prev => ({ ...prev, status: 'confirming' }))}
+              style={{
+                width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center',
+                justifyContent: 'center', background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                border: 'none', cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={theme.textSecondary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <span style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary, letterSpacing: '-0.02em' }}>
+              Fix the scan
+            </span>
+          </div>
+
+          <p style={{ fontSize: 12, color: theme.textSecondary, margin: 0 }}>
+            What did you actually have? AI will re-analyze the hydration values.
+          </p>
+
+          <input
+            ref={editInputRef}
+            type="text"
+            value={editText}
+            onChange={e => setEditText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !editAnalyzing && handleEditSubmit()}
+            placeholder={`e.g. "iced coffee, 16 oz"`}
+            style={{
+              width: '100%', border: `1px solid ${theme.cardBorder}`, borderRadius: 12,
+              padding: '11px 14px', fontSize: 14, color: theme.textPrimary,
+              background: theme.inputBg, outline: 'none', boxSizing: 'border-box',
+              fontFamily: 'inherit',
+            }}
+          />
+          <p style={{ fontSize: 11, color: theme.textTertiary, margin: '-6px 0 0' }}>
+            Include the size for accuracy — e.g. "16 oz"
+          </p>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleEditSubmit}
+              disabled={!editText.trim() || editAnalyzing}
+              className="flex-1 rounded-xl py-2.5 text-sm font-semibold"
+              style={{
+                background: '#111827', color: '#ffffff', border: 'none',
+                cursor: (!editText.trim() || editAnalyzing) ? 'default' : 'pointer',
+                opacity: (!editText.trim() || editAnalyzing) ? 0.5 : 1,
+                transition: 'opacity 0.15s ease',
+              }}
+            >
+              {editAnalyzing ? 'Analyzing...' : 'Analyze & Log →'}
+            </button>
+            <button
+              onClick={() => setAnalyzing({ status: 'idle' })}
+              className="rounded-xl px-4 py-2.5 text-sm"
+              style={{ background: 'transparent', color: theme.textSecondary, border: `1px solid ${theme.cardBorder}`, cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Analyzing spinner ──────────────────────────────────────────────── */}
       {analyzing.status === 'analyzing' && (
         <div className="glass rounded-2xl px-4 py-3 flex items-center gap-3 animate-fade-up">
           <div style={{
@@ -178,7 +332,7 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode 
         </div>
       )}
 
-      {/* Error */}
+      {/* ── Error ─────────────────────────────────────────────────────────── */}
       {analyzing.status === 'error' && (
         <div className="glass rounded-2xl px-4 py-3 animate-fade-up" style={{ borderLeft: '3px solid #dc2626' }}>
           <p className="text-sm" style={{ color: '#dc2626' }}>
@@ -189,7 +343,7 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode 
         </div>
       )}
 
-      {/* Photo button — primary CTA */}
+      {/* ── Scan button ────────────────────────────────────────────────────── */}
       <button
         onClick={() => fileRef.current?.click()}
         disabled={analyzing.status === 'analyzing'}
@@ -212,13 +366,8 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode 
           Scan your drink
         </span>
         <span style={{
-          marginLeft: 'auto',
-          fontSize: 10,
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: 'rgba(255,255,255,0.4)',
-          paddingLeft: 4,
+          marginLeft: 'auto', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
+          textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', paddingLeft: 4,
         }}>
           AI
         </span>
@@ -243,13 +392,12 @@ export default function DrinkInput({ onSelectDrink, onScanConfirm, hangoverMode 
         </div>
       )}
 
-      {/* Quick drink grid — row 1: Water, Coffee, Energy, Tea */}
+      {/* Quick drink grid */}
       <div className="grid grid-cols-4 gap-2">
         {QUICK_DRINKS.slice(0, 4).map((d) => (
           <QuickDrinkButton key={d.type} type={d.type} label={d.label} onSelectDrink={onSelectDrink} hangoverMode={hangoverMode} />
         ))}
       </div>
-      {/* Quick drink grid — row 2: Juice, Soda, Electrolytes, Alcohol */}
       <div className="grid grid-cols-4 gap-2">
         {QUICK_DRINKS.slice(4).map((d) => (
           <QuickDrinkButton key={d.type} type={d.type} label={d.label} onSelectDrink={onSelectDrink} hangoverMode={hangoverMode} />
@@ -278,11 +426,9 @@ function QuickDrinkButton({
   };
 
   const priority = hangoverMode ? RECOVERY_PRIORITY[type] : undefined;
-
-  // Style tokens per priority
-  const isBest   = priority === 'best';
-  const isGood   = priority === 'good';
-  const isAvoid  = priority === 'avoid';
+  const isBest  = priority === 'best';
+  const isGood  = priority === 'good';
+  const isAvoid = priority === 'avoid';
 
   const bg = flash
     ? isBest ? '#f0fdf4' : isGood ? '#f0fdf4' : theme.inputBg
@@ -290,35 +436,14 @@ function QuickDrinkButton({
 
   const border = isBest
     ? '1.5px solid #16a34a'
-    : isGood
-    ? '1.5px solid rgba(22,163,74,0.35)'
-    : isAvoid
-    ? `1px solid ${theme.cardBorder}`
+    : isGood ? '1.5px solid rgba(22,163,74,0.35)'
     : `1px solid ${theme.cardBorder}`;
 
-  const iconColor = isBest
-    ? '#15803d'
-    : isGood
-    ? '#22c55e'
-    : isAvoid
-    ? theme.textTertiary
-    : theme.textSecondary;
-
-  const labelColor = isBest
-    ? '#15803d'
-    : isGood
-    ? '#16a34a'
-    : isAvoid
-    ? theme.textTertiary
-    : theme.textSecondary;
-
-  const opacity = isAvoid ? 0.55 : 1;
-
-  const boxShadow = isBest
+  const iconColor  = isBest ? '#15803d' : isGood ? '#22c55e' : isAvoid ? theme.textTertiary : theme.textSecondary;
+  const labelColor = isBest ? '#15803d' : isGood ? '#16a34a' : isAvoid ? theme.textTertiary : theme.textSecondary;
+  const boxShadow  = isBest
     ? '0 2px 12px rgba(22,163,74,0.18), 0 1px 3px rgba(22,163,74,0.1)'
-    : isGood
-    ? '0 1px 6px rgba(22,163,74,0.1)'
-    : theme.cardShadow;
+    : isGood ? '0 1px 6px rgba(22,163,74,0.1)' : theme.cardShadow;
 
   return (
     <button
@@ -326,24 +451,12 @@ function QuickDrinkButton({
       onClick={handleClick}
       className="rounded-2xl py-3 flex flex-col items-center gap-1.5 drink-btn"
       style={{
-        position: 'relative',
-        background: bg,
-        border,
-        boxShadow,
-        opacity,
-        transition: 'all 0.2s ease',
-        cursor: 'pointer',
+        position: 'relative', background: bg, border, boxShadow,
+        opacity: isAvoid ? 0.55 : 1, transition: 'all 0.2s ease', cursor: 'pointer',
       }}
     >
-      {/* Best pick dot indicator */}
       {isBest && (
-        <span style={{
-          position: 'absolute',
-          top: 6, right: 6,
-          width: 6, height: 6,
-          borderRadius: '50%',
-          background: '#16a34a',
-        }} />
+        <span style={{ position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: '50%', background: '#16a34a' }} />
       )}
       {getDrinkIcon(type, 20, iconColor)}
       <span className="text-xs font-medium leading-tight text-center" style={{ color: labelColor }}>
@@ -356,27 +469,21 @@ function QuickDrinkButton({
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(',')[1]);
-    };
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
-/** Resize image to a 56×56 square thumbnail and return as a data URL. ~2-3 KB. */
 function makeThumbnail(file: File, size = 56): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
+      canvas.width = size; canvas.height = size;
       const ctx = canvas.getContext('2d');
       if (!ctx) { URL.revokeObjectURL(url); resolve(''); return; }
-      // Centre-crop to square
       const min = Math.min(img.width, img.height);
       const sx = (img.width - min) / 2;
       const sy = (img.height - min) / 2;
