@@ -182,7 +182,7 @@ export default function CameraScanner({ onCapture, onClose }: Props) {
       <button
         onClick={onClose}
         style={{
-          position: 'absolute', top: 18, left: 18, zIndex: 40,
+          position: 'absolute', top: 'calc(18px + env(safe-area-inset-top, 0px))', left: 18, zIndex: 40,
           width: 40, height: 40, borderRadius: 12,
           background: 'rgba(0,0,0,0.48)',
           border: '1px solid rgba(255,255,255,0.14)',
@@ -198,7 +198,7 @@ export default function CameraScanner({ onCapture, onClose }: Props) {
 
       {/* ── Instruction pill ───────────────────────────────────────────────── */}
       <div style={{
-        position: 'absolute', top: 22, left: 0, right: 0,
+        position: 'absolute', top: 'calc(22px + env(safe-area-inset-top, 0px))', left: 0, right: 0,
         display: 'flex', justifyContent: 'center', zIndex: 40,
       }}>
         <div style={{

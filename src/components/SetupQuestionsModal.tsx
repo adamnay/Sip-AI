@@ -291,7 +291,7 @@ export default function SetupQuestionsModal({ initialAnswers, onComplete, onClos
       display: 'flex', flexDirection: 'column', maxWidth: 420, margin: '0 auto',
     }}>
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'calc(16px + env(safe-area-inset-top, 0px)) 20px 0' }}>
         <button onClick={handleBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0', display: 'flex', alignItems: 'center', gap: 6, color: theme.textSecondary, fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>
           <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
           {qIndex === 0 ? 'Cancel' : 'Back'}

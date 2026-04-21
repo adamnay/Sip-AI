@@ -94,7 +94,7 @@ export default function LoginPage({ onLogin }: Props) {
         padding: '0 20px 48px', overflowY: 'auto',
       }}>
         {/* Back */}
-        <div style={{ paddingTop: 16, marginBottom: 32 }}>
+        <div style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))', marginBottom: 32 }}>
           <button
             onClick={() => setStep('onboarding')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: theme.textSecondary, fontFamily: 'inherit', fontSize: 14, fontWeight: 600, padding: '8px 0' }}
