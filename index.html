@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Sip AI</title>
 
     <!-- PWA manifest -->
     <link rel="manifest" href="/manifest.json" />
 
     <!-- Theme -->
-    <meta name="theme-color" content="#070710" />
+    <meta name="theme-color" content="#000000" />
 
     <!-- iOS PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,11 +17,66 @@
     <meta name="apple-mobile-web-app-title" content="Sip AI" />
     <link rel="apple-touch-icon" href="/icon.png" />
 
-    <!-- Splash screen color on iOS -->
-    <meta name="msapplication-TileColor" content="#070710" />
+    <style>
+      body { background: #000; margin: 0; }
+
+      #sip-splash {
+        position: fixed;
+        inset: 0;
+        background: #000;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+
+      #sip-splash-icon {
+        width: 220px;
+        height: 220px;
+        opacity: 0;
+        animation: sipIconIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+      }
+
+      @keyframes sipIconIn {
+        from { opacity: 0; transform: scale(0.82); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+
+      #sip-splash.sip-hide {
+        animation: sipOut 0.35s ease-in forwards;
+      }
+
+      @keyframes sipOut {
+        to { opacity: 0; }
+      }
+    </style>
   </head>
   <body>
+    <div id="sip-splash">
+      <img id="sip-splash-icon" src="/icon.png" alt="" />
+    </div>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <script>
+      (function () {
+        var hidden = false;
+        function hideSplash() {
+          if (hidden) return;
+          hidden = true;
+          var el = document.getElementById('sip-splash');
+          if (!el) return;
+          el.classList.add('sip-hide');
+          setTimeout(function () {
+            if (el.parentNode) el.parentNode.removeChild(el);
+          }, 360);
+        }
+        window.__sipHideSplash = hideSplash;
+        // Failsafe — always dismiss after 3 s
+        setTimeout(hideSplash, 3000);
+      })();
+    </script>
   </body>
 </html>

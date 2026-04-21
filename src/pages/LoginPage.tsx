@@ -4,18 +4,19 @@ import { useTheme, getTheme } from '../context/ThemeContext';
 import type { Session } from '@supabase/supabase-js';
 import type { UserProfile } from '../engine/hydrationEngine';
 import SetupQuestionsModal from '../components/SetupQuestionsModal';
+import WelcomePage from './WelcomePage';
 
 interface Props {
   onLogin: (session: Session, profile?: Partial<UserProfile>) => void;
 }
 
-type Step = 'onboarding' | 'save' | 'login';
+type Step = 'welcome' | 'onboarding' | 'save' | 'login';
 
 export default function LoginPage({ onLogin }: Props) {
   const isDark = useTheme();
   const theme = getTheme(isDark);
 
-  const [step, setStep] = useState<Step>('onboarding');
+  const [step, setStep] = useState<Step>('welcome');
 
   // Saved when questionnaire completes — used after signup
   const [savedAnswers,  setSavedAnswers]  = useState<Record<string, string>>({});
@@ -67,6 +68,16 @@ export default function LoginPage({ onLogin }: Props) {
     if (data.session) onLogin(data.session);
   };
 
+  // ── Welcome — hero landing screen ────────────────────────────────────────
+  if (step === 'welcome') {
+    return (
+      <WelcomePage
+        onGetStarted={() => setStep('onboarding')}
+        onLogin={() => { setStep('login'); setError(''); }}
+      />
+    );
+  }
+
   // ── Onboarding — delegates to the full SetupQuestionsModal ────────────────
   if (step === 'onboarding') {
     return (
@@ -77,8 +88,8 @@ export default function LoginPage({ onLogin }: Props) {
           setStep('save');
         }}
         onClose={() => {
-          // X / Cancel → let returning users jump straight to sign-in
-          setStep('login');
+          // X / Cancel → back to welcome
+          setStep('welcome');
           setError('');
         }}
       />

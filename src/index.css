@@ -92,6 +92,45 @@ body {
   to   { transform: rotate(360deg); }
 }
 
+/* ── Welcome page animations ──────────────────────────────────── */
+@keyframes welcomeIn {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes welcomeRing {
+  0%   { transform: translate(-50%, -50%) scale(1);   opacity: 0.55; }
+  100% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; }
+}
+
+@keyframes welcomeFloat {
+  0%        { transform: translateY(0) scale(1);    opacity: 0.8; }
+  70%       { opacity: 0.3; }
+  100%      { transform: translateY(-88vh) scale(0.5); opacity: 0; }
+}
+
+@keyframes welcomeShimmer {
+  0%   { transform: translateX(-180%); }
+  100% { transform: translateX(360%); }
+}
+
+@keyframes welcomeGlow {
+  0%   { opacity: 0.5; transform: translateX(-50%) scale(1);    }
+  100% { opacity: 0.9; transform: translateX(-50%) scale(1.18); }
+}
+
+@keyframes welcomeIconBob {
+  0%, 100% { transform: translateY(0px);  }
+  50%      { transform: translateY(-9px); }
+}
+
+@keyframes welcomeOrb {
+  0%   { transform: translate(0, 0)    scale(1);    }
+  33%  { transform: translate(18px, -12px) scale(1.06); }
+  66%  { transform: translate(-14px, 8px)  scale(0.95); }
+  100% { transform: translate(0, 0)    scale(1);    }
+}
+
 @keyframes ring-flash {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.15; }

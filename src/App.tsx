@@ -123,6 +123,14 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Dismiss the HTML splash once auth check is done
+  useEffect(() => {
+    if (authReady) {
+      const hide = (window as unknown as Record<string, unknown>).__sipHideSplash as (() => void) | undefined;
+      hide?.();
+    }
+  }, [authReady]);
+
   useEffect(() => {
     try { localStorage.setItem('sip-ai-dark', String(darkMode)); } catch { /* ignore */ }
     document.body.classList.toggle('dark', darkMode);
@@ -450,13 +458,9 @@ export default function App() {
   const theme = getTheme(darkMode);
   const yesterdayDebt = getYesterdayDebt(state);
 
-  // Loading screen while checking auth
+  // Loading — pure black so it's invisible against the black launch screen
   if (!authReady) {
-    return (
-      <ThemeContext.Provider value={darkMode}>
-        <div style={{ background: theme.bg, minHeight: '100dvh' }} />
-      </ThemeContext.Provider>
-    );
+    return <div style={{ background: '#000', minHeight: '100dvh' }} />;
   }
 
   // Show login if not authenticated
@@ -490,7 +494,7 @@ export default function App() {
       style={{ background: theme.bg, maxWidth: 420, margin: '0 auto', overflowX: 'hidden' }}
     >
       {/* ── Header (always visible) ── */}
-      <header className="flex items-center justify-between px-5 pt-5 pb-1" style={{ background: theme.bg }}>
+      <header className="flex items-center justify-between px-5 pb-1" style={{ background: theme.bg, paddingTop: 'calc(20px + env(safe-area-inset-top, 0px))' }}>
         <div className="flex items-center gap-2">
           <img
             src="/logo.png"
