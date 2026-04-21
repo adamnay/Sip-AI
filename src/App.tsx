@@ -123,12 +123,17 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Dismiss the HTML splash once auth check is done
+  // Dismiss the HTML splash after a minimum of 3 s from page load
+  const splashStartRef = useRef(Date.now());
   useEffect(() => {
-    if (authReady) {
+    if (!authReady) return;
+    const elapsed   = Date.now() - splashStartRef.current;
+    const remaining = Math.max(0, 3000 - elapsed);
+    const t = setTimeout(() => {
       const hide = (window as unknown as Record<string, unknown>).__sipHideSplash as (() => void) | undefined;
       hide?.();
-    }
+    }, remaining);
+    return () => clearTimeout(t);
   }, [authReady]);
 
   useEffect(() => {
