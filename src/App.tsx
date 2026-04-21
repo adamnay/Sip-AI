@@ -333,6 +333,17 @@ export default function App() {
     });
   }, [showFeedback]);
 
+  // Direct log from scan result sheet (bypasses DrinkFlowModal)
+  const handleScanDirectLog = useCallback((type: DrinkType, volumeMl: number, overrides: DrinkOverrides) => {
+    feedbackAdd();
+    setState((prev) => {
+      const decayed = applyTimeDecay(prev);
+      const { newState, entry } = addDrink(decayed, type, volumeMl, overrides);
+      showFeedback(entry.feedback);
+      return newState;
+    });
+  }, [showFeedback]);
+
   const handleFlowConfirm = useCallback(
     (type: DrinkType, volume_ml: number, overrides: DrinkOverrides) => {
       setSelectedDrinkType(null);
@@ -893,6 +904,7 @@ export default function App() {
           activePage={page as 'home' | 'analytics' | 'settings'}
           onNavigate={handleNavigate}
           onScanComplete={(type) => setSelectedDrinkType(type)}
+          onScanDirectConfirm={handleScanDirectLog}
         />
       )}
     </div>
