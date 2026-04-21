@@ -6,6 +6,7 @@ import type { DrinkAnalysis } from '../api/drinkAnalyzer';
 import { HomeIcon, BarChartIcon, GearIcon, XIcon } from './Icons';
 import { useTheme, getTheme } from '../context/ThemeContext';
 import { feedbackAdd } from '../utils/feedback';
+import CameraScanner from './CameraScanner';
 
 type Page = 'home' | 'analytics' | 'settings';
 
@@ -66,6 +67,7 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete, onSc
   const theme = getTheme(isDark);
   const fileRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [scanSheet, setScanSheet] = useState<ScanSheet>(null);
   const [editText, setEditText] = useState('');
   const [editAnalyzing, setEditAnalyzing] = useState(false);
@@ -80,6 +82,27 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete, onSc
       const base64 = await fileToBase64(file);
       const mediaType = file.type as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
       const result = await analyzeDrinkPhoto(base64, mediaType);
+      setScanSheet({ step: 'result', result });
+    } catch {
+      onScanComplete('water');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleScanClick = () => {
+    if (navigator.mediaDevices) {
+      setShowScanner(true);
+    } else {
+      fileRef.current?.click();
+    }
+  };
+
+  const handleCameraCapture = async (base64: string) => {
+    setShowScanner(false);
+    setScanning(true);
+    try {
+      const result = await analyzeDrinkPhoto(base64, 'image/jpeg');
       setScanSheet({ step: 'result', result });
     } catch {
       onScanComplete('water');
@@ -341,6 +364,12 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete, onSc
 
   return (
     <>
+      {showScanner && (
+        <CameraScanner
+          onCapture={handleCameraCapture}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
       {renderScanSheet()}
 
       <nav
@@ -357,7 +386,7 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete, onSc
         {/* Center scan button */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: 13, gap: 4 }}>
           <button
-            onClick={() => fileRef.current?.click()}
+            onClick={handleScanClick}
             disabled={scanning}
             style={{
               width: 54, height: 54, borderRadius: '50%',
