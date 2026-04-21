@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { DrinkType, DrinkOverrides } from '../engine/hydrationEngine';
 import { DRINK_PROFILES } from '../engine/hydrationEngine';
 import { analyzeDrinkPhoto, analyzeDrinkName } from '../api/drinkAnalyzer';
@@ -419,13 +420,16 @@ export default function BottomNav({ activePage, onNavigate, onScanComplete, onSc
 
   return (
     <>
-      {showScanner && (
+      {/* Portal both the scanner and result sheet to document.body so
+          they escape the App's overflowX:hidden stacking context */}
+      {showScanner && createPortal(
         <CameraScanner
           onCapture={handleCameraCapture}
           onClose={() => setShowScanner(false)}
-        />
+        />,
+        document.body
       )}
-      {renderScanSheet()}
+      {scanSheet && createPortal(renderScanSheet(), document.body)}
 
       <nav
         style={{
