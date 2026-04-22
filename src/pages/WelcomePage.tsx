@@ -21,7 +21,7 @@ export default function WelcomePage({ onGetStarted, onLogin }: Props) {
   return (
     <div style={{
       position: 'fixed', inset: 0,
-      background: '#000',
+      background: '#ffffff',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       overflow: 'hidden',
@@ -29,25 +29,25 @@ export default function WelcomePage({ onGetStarted, onLogin }: Props) {
       paddingBottom: 'calc(36px + env(safe-area-inset-bottom, 0px))',
     }}>
 
-      {/* ── Background: large slow-drifting glow orbs ── */}
+      {/* ── Background glow orbs ── */}
       <div style={{
         position: 'absolute', top: '-8%', left: '50%',
         width: 520, height: 520, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(6,182,212,0.10) 0%, transparent 68%)',
+        background: 'radial-gradient(circle, rgba(6,182,212,0.07) 0%, transparent 68%)',
         animation: 'welcomeGlow 5s ease-in-out infinite alternate',
         pointerEvents: 'none',
       }} />
       <div style={{
         position: 'absolute', top: '30%', left: '15%',
         width: 280, height: 280, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 70%)',
         animation: 'welcomeOrb 7s ease-in-out infinite',
         pointerEvents: 'none',
       }} />
       <div style={{
         position: 'absolute', top: '25%', right: '8%',
         width: 220, height: 220, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(6,182,212,0.07) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, rgba(6,182,212,0.05) 0%, transparent 70%)',
         animation: 'welcomeOrb 9s ease-in-out 2s infinite reverse',
         pointerEvents: 'none',
       }} />
@@ -60,8 +60,8 @@ export default function WelcomePage({ onGetStarted, onLogin }: Props) {
           left: `${p.x}%`,
           width: p.size, height: p.size, borderRadius: '50%',
           background: p.cyan
-            ? `rgba(6,182,212,${0.3 + (i % 3) * 0.1})`
-            : `rgba(139,92,246,${0.25 + (i % 3) * 0.1})`,
+            ? `rgba(6,182,212,${0.18 + (i % 3) * 0.08})`
+            : `rgba(99,102,241,${0.14 + (i % 3) * 0.07})`,
           animation: `welcomeFloat ${p.dur}s ease-in ${p.delay}s infinite`,
           pointerEvents: 'none',
           filter: 'blur(0.5px)',
@@ -76,20 +76,20 @@ export default function WelcomePage({ onGetStarted, onLogin }: Props) {
             position: 'absolute',
             top: '50%', left: '50%',
             width: 116, height: 116, borderRadius: '50%',
-            border: '1.5px solid rgba(6,182,212,0.4)',
+            border: '1.5px solid rgba(6,182,212,0.28)',
             animation: `welcomeRing 2.7s ease-out ${i * 0.9}s infinite`,
           }} />
         ))}
 
-        {/* Icon */}
+        {/* Icon container */}
         <div style={{
           width: 116, height: 116, borderRadius: 34,
-          background: 'linear-gradient(145deg, rgba(6,182,212,0.15) 0%, rgba(99,102,241,0.12) 100%)',
-          border: '1px solid rgba(6,182,212,0.24)',
+          background: 'linear-gradient(145deg, rgba(6,182,212,0.08) 0%, rgba(99,102,241,0.06) 100%)',
+          border: '1px solid rgba(6,182,212,0.18)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           animation: 'welcomeIconBob 3.6s ease-in-out infinite',
           position: 'relative', zIndex: 1,
-          boxShadow: '0 0 48px rgba(6,182,212,0.15), inset 0 1px 0 rgba(255,255,255,0.06)',
+          boxShadow: '0 4px 32px rgba(6,182,212,0.10), 0 1px 0 rgba(255,255,255,0.9) inset',
         }}>
           <img src="/icon.png" alt="" style={{ width: 74, height: 74, borderRadius: 20 }} />
         </div>
@@ -101,7 +101,7 @@ export default function WelcomePage({ onGetStarted, onLogin }: Props) {
         <p style={{
           fontSize: 11, fontWeight: 800, letterSpacing: '0.22em',
           textTransform: 'uppercase',
-          color: 'rgba(6,182,212,0.65)',
+          color: '#0891b2',
           margin: '0 0 12px',
           animation: 'welcomeIn 0.8s cubic-bezier(0.16,1,0.3,1) 0.1s both',
         }}>
@@ -112,7 +112,7 @@ export default function WelcomePage({ onGetStarted, onLogin }: Props) {
         <h1 style={{
           fontSize: 68, fontWeight: 900, letterSpacing: '-0.045em', lineHeight: 0.92,
           margin: '0 0 20px',
-          background: 'linear-gradient(140deg, #ffffff 0%, #a5f3fc 40%, #818cf8 100%)',
+          background: 'linear-gradient(140deg, #0f172a 0%, #0891b2 50%, #6366f1 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
@@ -124,7 +124,7 @@ export default function WelcomePage({ onGetStarted, onLogin }: Props) {
         {/* Tagline */}
         <p style={{
           fontSize: 17, fontWeight: 500, lineHeight: 1.5, letterSpacing: '-0.01em',
-          color: 'rgba(255,255,255,0.42)',
+          color: 'rgba(55,65,81,0.65)',
           margin: 0,
           animation: 'welcomeIn 0.8s cubic-bezier(0.16,1,0.3,1) 0.48s both',
         }}>
@@ -148,7 +148,7 @@ export default function WelcomePage({ onGetStarted, onLogin }: Props) {
             color: '#fff', fontSize: 18, fontWeight: 800,
             cursor: 'pointer', fontFamily: 'inherit',
             letterSpacing: '-0.02em',
-            boxShadow: '0 0 48px rgba(6,182,212,0.28), 0 8px 28px rgba(0,0,0,0.5)',
+            boxShadow: '0 4px 24px rgba(6,182,212,0.30), 0 2px 8px rgba(0,0,0,0.08)',
             position: 'relative', overflow: 'hidden',
           }}
           onPointerDown={e => (e.currentTarget.style.transform = 'scale(0.97)')}
@@ -174,7 +174,7 @@ export default function WelcomePage({ onGetStarted, onLogin }: Props) {
         {/* Log-in link */}
         <p style={{
           textAlign: 'center', margin: '22px 0 0',
-          fontSize: 14, color: 'rgba(255,255,255,0.28)',
+          fontSize: 14, color: 'rgba(55,65,81,0.5)',
           letterSpacing: '-0.01em',
         }}>
           Already have an account?{' '}
@@ -182,7 +182,7 @@ export default function WelcomePage({ onGetStarted, onLogin }: Props) {
             onClick={onLogin}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              color: 'rgba(6,182,212,0.75)', fontWeight: 700,
+              color: '#0891b2', fontWeight: 700,
               fontSize: 14, fontFamily: 'inherit', padding: 0,
             }}
           >

@@ -463,9 +463,9 @@ export default function App() {
   const theme = getTheme(darkMode);
   const yesterdayDebt = getYesterdayDebt(state);
 
-  // Loading — pure black so it's invisible against the black launch screen
+  // Loading — pure white so it's invisible against the white launch screen
   if (!authReady) {
-    return <div style={{ background: '#000', minHeight: '100dvh' }} />;
+    return <div style={{ background: '#fff', minHeight: '100dvh' }} />;
   }
 
   // Show login if not authenticated

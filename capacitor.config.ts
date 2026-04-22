@@ -4,10 +4,10 @@ const config: CapacitorConfig = {
   appId: 'com.sipai.app',
   appName: 'Sip AI',
   webDir: 'dist',
-  // Set WebView background to black so no white flash before CSS loads
-  backgroundColor: '#000000',
+  // Set WebView background to white to match the light splash
+  backgroundColor: '#ffffff',
   ios: {
-    backgroundColor: '#000000',
+    backgroundColor: '#ffffff',
   },
   server: {
     // Remove this block before production — dev only for hot reload
@@ -17,7 +17,7 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 0,
       launchAutoHide: true,
-      backgroundColor: '#000000',
+      backgroundColor: '#ffffff',
       showSpinner: false,
     },
     StatusBar: {
