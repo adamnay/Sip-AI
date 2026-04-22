@@ -463,9 +463,16 @@ export default function App() {
   const theme = getTheme(darkMode);
   const yesterdayDebt = getYesterdayDebt(state);
 
-  // Loading — pure white so it's invisible against the white launch screen
+  // Loading — white screen with centered logo, matches the HTML splash
   if (!authReady) {
-    return <div style={{ background: '#fff', minHeight: '100dvh' }} />;
+    return (
+      <div style={{
+        background: '#fff', minHeight: '100dvh',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <img src="/icon.png" alt="" style={{ width: 220, height: 220 }} />
+      </div>
+    );
   }
 
   // Show login if not authenticated
