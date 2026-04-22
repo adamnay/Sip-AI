@@ -1,5 +1,6 @@
 .env
 dist/
+node_modules/
 
 # Capacitor native projects — generated locally, not committed
 ios/
