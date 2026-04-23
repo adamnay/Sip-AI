@@ -91,7 +91,7 @@ export default function WelcomePage({ onGetStarted, onLogin }: Props) {
           position: 'relative', zIndex: 1,
           boxShadow: '0 4px 32px rgba(6,182,212,0.10), 0 1px 0 rgba(255,255,255,0.9) inset',
         }}>
-          <img src="/icon.png" alt="" style={{ width: 74, height: 74, borderRadius: 20 }} />
+          <img src="/icon.png" alt="" style={{ width: 74, height: 74, borderRadius: 20, filter: 'invert(1)' }} />
         </div>
       </div>
 

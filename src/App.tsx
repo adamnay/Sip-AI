@@ -470,7 +470,7 @@ export default function App() {
         background: '#fff', minHeight: '100dvh',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <img src="/icon.png" alt="" style={{ width: 220, height: 220 }} />
+        <img src="/icon.png" alt="" style={{ width: 220, height: 220, filter: 'invert(1)' }} />
       </div>
     );
   }
