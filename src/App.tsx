@@ -110,9 +110,9 @@ export default function App() {
   const notifPrefsRef = useRef(notifPrefs);
   const weatherRef = useRef<WeatherContext | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
-  // Captures the most recent drink entry so it can be flushed to drink_logs after setState settles
-  const pendingDrinkLogRef = useRef<DrinkEntry | null>(null);
-  // Always mirrors current state so async callbacks can read it without stale closures
+  // Always mirrors latest session + state so callbacks never go stale
+  const sessionRef = useRef(session);
+  useEffect(() => { sessionRef.current = session; }, [session]);
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
   const [showWeatherPopup, setShowWeatherPopup] = useState(false);
@@ -292,19 +292,10 @@ export default function App() {
 
   useEffect(() => {
     saveState(state);
-    // Also save the full state blob to the cloud whenever it changes
-    if (session?.user?.id) {
-      saveStateToCloud(session.user.id, state);
+    if (sessionRef.current?.user?.id) {
+      saveStateToCloud(sessionRef.current.user.id, state);
     }
-  }, [state, session]);
-
-  // After each state update, flush any pending drink entry to the drink_logs table
-  useEffect(() => {
-    const entry = pendingDrinkLogRef.current;
-    if (!entry || !session?.user?.id) return;
-    pendingDrinkLogRef.current = null;
-    logDrinkToCloud(session.user.id, entry);
-  }, [state, session]);
+  }, [state]);
 
   const showFeedback = useCallback((msg: string) => {
     clearTimeout(feedbackTimerRef.current);
@@ -363,42 +354,33 @@ export default function App() {
 
   const handleScanConfirm = useCallback((type: DrinkType, volumeMl: number, displayName: string, thumbnail?: string) => {
     feedbackAdd();
-    setState((prev) => {
-      const decayed = applyTimeDecay(prev);
-      const overrides = {
-        ...(displayName ? { label: displayName } : {}),
-        ...(thumbnail ? { scanThumbnail: thumbnail } : {}),
-      };
-      const { newState, entry } = addDrink(decayed, type, volumeMl, overrides);
-      showFeedback(entry.feedback);
-      pendingDrinkLogRef.current = entry;
-      return newState;
-    });
+    const overrides = {
+      ...(displayName ? { label: displayName } : {}),
+      ...(thumbnail ? { scanThumbnail: thumbnail } : {}),
+    };
+    const { newState, entry } = addDrink(applyTimeDecay(stateRef.current), type, volumeMl, overrides);
+    showFeedback(entry.feedback);
+    setState(newState);
+    if (sessionRef.current?.user?.id) logDrinkToCloud(sessionRef.current.user.id, entry);
   }, [showFeedback]);
 
   // Direct log from scan result sheet (bypasses DrinkFlowModal)
   const handleScanDirectLog = useCallback((type: DrinkType, volumeMl: number, overrides: DrinkOverrides) => {
     feedbackAdd();
-    setState((prev) => {
-      const decayed = applyTimeDecay(prev);
-      const { newState, entry } = addDrink(decayed, type, volumeMl, overrides);
-      showFeedback(entry.feedback);
-      pendingDrinkLogRef.current = entry;
-      return newState;
-    });
+    const { newState, entry } = addDrink(applyTimeDecay(stateRef.current), type, volumeMl, overrides);
+    showFeedback(entry.feedback);
+    setState(newState);
+    if (sessionRef.current?.user?.id) logDrinkToCloud(sessionRef.current.user.id, entry);
   }, [showFeedback]);
 
   const handleFlowConfirm = useCallback(
     (type: DrinkType, volume_ml: number, overrides: DrinkOverrides) => {
       setSelectedDrinkType(null);
       feedbackAdd();
-      setState((prev) => {
-        const decayed = applyTimeDecay(prev);
-        const { newState, entry } = addDrink(decayed, type, volume_ml, overrides);
-        showFeedback(entry.feedback);
-        pendingDrinkLogRef.current = entry;
-        return newState;
-      });
+      const { newState, entry } = addDrink(applyTimeDecay(stateRef.current), type, volume_ml, overrides);
+      showFeedback(entry.feedback);
+      setState(newState);
+      if (sessionRef.current?.user?.id) logDrinkToCloud(sessionRef.current.user.id, entry);
     },
     [showFeedback]
   );
@@ -454,14 +436,11 @@ export default function App() {
 
   const handleLogFavorite = useCallback((fav: import('./engine/hydrationEngine').FavoriteDrink) => {
     feedbackAdd();
-    setState((prev) => {
-      const decayed = applyTimeDecay(prev);
-      const overrides = { ...fav.overrides, label: fav.label, ...(fav.scanThumbnail ? { scanThumbnail: fav.scanThumbnail } : {}) };
-      const { newState, entry } = addDrink(decayed, fav.type, fav.volume_ml, overrides);
-      showFeedback(entry.feedback);
-      pendingDrinkLogRef.current = entry;
-      return newState;
-    });
+    const overrides = { ...fav.overrides, label: fav.label, ...(fav.scanThumbnail ? { scanThumbnail: fav.scanThumbnail } : {}) };
+    const { newState, entry } = addDrink(applyTimeDecay(stateRef.current), fav.type, fav.volume_ml, overrides);
+    showFeedback(entry.feedback);
+    setState(newState);
+    if (sessionRef.current?.user?.id) logDrinkToCloud(sessionRef.current.user.id, entry);
   }, [showFeedback]);
 
   const handleActivity = useCallback((result: ActivityResult) => {
