@@ -49,15 +49,15 @@ export async function logDrinkToCloud(userId: string, entry: DrinkEntry): Promis
     const electrolyte       = entry.type === 'electrolyte';
 
     await supabase.from('drink_logs').insert({
-      id:                entry.id,
-      user_id:           userId,
-      drink_type:        entry.type,
-      display_name:      entry.label,
-      volume_ml:         entry.volume_ml,
-      hydration_per_ml:  hydrationPerMl,
+      // id omitted — Supabase auto-generates a valid UUID
+      user_id:            userId,
+      drink_type:         entry.type,
+      display_name:       entry.label,
+      volume_ml:          entry.volume_ml,
+      hydration_per_ml:   hydrationPerMl,
       caffeine_per_100ml: caffeinePer100ml,
       electrolyte,
-      logged_at:         new Date(entry.timestamp).toISOString(),
+      logged_at:          new Date(entry.timestamp).toISOString(),
     });
   } catch {
     // Fail silently — local state is still the source of truth
