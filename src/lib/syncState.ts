@@ -1,15 +1,29 @@
 import { supabase } from './supabase';
 import type { HydrationState, DrinkEntry } from '../engine/hydrationEngine';
 
-export async function loadStateFromCloud(userId: string): Promise<HydrationState | null> {
+export async function loadStateFromCloud(
+  userId: string,
+  localState?: HydrationState,
+): Promise<HydrationState | null> {
   try {
     const { data, error } = await supabase
       .from('hydration_states')
-      .select('state')
+      .select('state, updated_at')
       .eq('user_id', userId)
       .single();
     if (error || !data) return null;
-    return data.state as HydrationState;
+
+    const cloudState = data.state as HydrationState;
+
+    // If we have a local state, compare timestamps and return whichever is newer.
+    // This means the last device to log a drink always wins — no data gets lost.
+    if (localState) {
+      const cloudTs = new Date(data.updated_at as string).getTime();
+      const localTs = localState.lastUpdate ?? 0;
+      return cloudTs >= localTs ? cloudState : null; // null = keep local
+    }
+
+    return cloudState;
   } catch {
     return null;
   }

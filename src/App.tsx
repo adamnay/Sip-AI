@@ -112,13 +112,23 @@ export default function App() {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   // Captures the most recent drink entry so it can be flushed to drink_logs after setState settles
   const pendingDrinkLogRef = useRef<DrinkEntry | null>(null);
+  // Always mirrors current state so async callbacks can read it without stale closures
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
   const [showWeatherPopup, setShowWeatherPopup] = useState(false);
 
-  // Auth init
+  // Auth init — on load, restore session AND pull latest cloud state
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setAuthReady(true);
+      // If already logged in, load their latest cloud state immediately.
+      // Pass local state so we only override if the cloud copy is newer.
+      if (data.session?.user?.id) {
+        loadStateFromCloud(data.session.user.id, stateRef.current).then(cloudState => {
+          if (cloudState) setState(cloudState);
+        });
+      }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
@@ -304,8 +314,8 @@ export default function App() {
 
   const handleLogin = useCallback((session: Session, initialProfile?: Partial<UserProfile>) => {
     setSession(session);
-    // Try to restore their cloud state (overrides local if found)
-    loadStateFromCloud(session.user.id).then(cloudState => {
+    // Try to restore their cloud state (only overrides local if cloud is newer)
+    loadStateFromCloud(session.user.id, stateRef.current).then(cloudState => {
       if (cloudState) setState(cloudState);
     });
     if (initialProfile) {
